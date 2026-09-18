@@ -19,9 +19,9 @@ namespace MCPForUnityTests.Editor.Tools
     ///                     Body [InspectPrefabFixture] / Seat (nested Seat.prefab)
     ///                     Wheels / Wheel_FL, Wheel_FR, Wheel_RL, Wheel_RR [BoxCollider]
     ///                     Parts (inactive) / Part0..Part29, Part{i} with i empty children (474 objs total)
-    ///   Car_Variant     variant of Car: value=7, Body gets a Rigidbody
+    ///   Car_Variant     variant of Car: value=7, Body moved to (0, 1, 0) and gets a Rigidbody
     ///   Holder.prefab   Holder / Seat (nested Seat.prefab only)
-    ///   Broken.prefab   Broken [InspectPrefabFixture mat=deleted material] / Ghost [missing script]
+    ///   Broken.prefab   Broken [InspectPrefabFixture mat=deleted material] / Ghost [missing script], Smoke [ParticleSystem]
     /// </summary>
     public class InspectPrefabTests
     {
@@ -80,7 +80,10 @@ namespace MCPForUnityTests.Editor.Tools
             var instanceFixture = instance.GetComponent<InspectPrefabFixture>();
             instanceFixture.value = 7;
             PrefabUtility.RecordPrefabInstancePropertyModifications(instanceFixture);
-            instance.transform.Find("Body").gameObject.AddComponent<Rigidbody>();
+            Transform variantBody = instance.transform.Find("Body");
+            variantBody.localPosition = new Vector3(0f, 1f, 0f);
+            PrefabUtility.RecordPrefabInstancePropertyModifications(variantBody);
+            variantBody.gameObject.AddComponent<Rigidbody>();
             PrefabUtility.SaveAsPrefabAsset(instance, VariantPath);
             Object.DestroyImmediate(instance);
 
@@ -96,6 +99,9 @@ namespace MCPForUnityTests.Editor.Tools
             var ghost = new GameObject("Ghost");
             ghost.transform.SetParent(broken.transform);
             ghost.AddComponent<CustomComponent>();
+            var smoke = new GameObject("Smoke");
+            smoke.transform.SetParent(broken.transform);
+            smoke.AddComponent<ParticleSystem>(); // non-mesh renderer: problems must not touch a MeshFilter
             PrefabUtility.SaveAsPrefabAsset(broken, BrokenPath);
             Object.DestroyImmediate(broken);
             AssetDatabase.DeleteAsset(MaterialPath);
@@ -214,6 +220,20 @@ namespace MCPForUnityTests.Editor.Tools
         }
 
         [Test]
+        public void Node_BuiltInComponentAtDefaults_IsReportedAsAllDefault()
+        {
+            string text = Run(new JObject
+            {
+                ["mode"] = "node",
+                ["prefab_path"] = CarPath,
+                ["path"] = "Wheels/Wheel_FL",
+                ["component"] = "BoxCollider",
+            });
+            StringAssert.Contains("  BoxCollider (all default)", text);
+            StringAssert.DoesNotContain("no default", text);
+        }
+
+        [Test]
         public void Node_BadPath_SuggestsNearbyPaths()
         {
             string error = RunError(new JObject { ["mode"] = "node", ["prefab_path"] = CarPath, ["path"] = "Wheels/Wheel_F" });
@@ -254,6 +274,8 @@ namespace MCPForUnityTests.Editor.Tools
             string text = Run(new JObject { ["mode"] = "overrides", ["prefab_path"] = VariantPath });
             StringAssert.Contains("variant of @Car.prefab", text);
             StringAssert.Contains("value: 42 -> 7", text);
+            StringAssert.Contains("localPosition: (0, 0, 0) -> (0, 1, 0)", text);
+            StringAssert.DoesNotContain("localPosition.y", text);
             StringAssert.Contains("+ Body (Rigidbody)", text);
         }
 

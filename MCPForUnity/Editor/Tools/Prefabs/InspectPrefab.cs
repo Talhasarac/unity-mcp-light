@@ -594,7 +594,9 @@ namespace MCPForUnity.Editor.Tools.Prefabs
             }
         }
 
-        private static string Tuple(params float[] v) => "(" + string.Join(", ", v.Select(Num4)) + ")";
+        internal static string Tuple(params float[] v) => "(" + string.Join(", ", v.Select(Num4)) + ")";
+
+        internal static string FormatColorValue(Color c) => FormatColor(c);
 
         private static string FormatColor(Color c)
         {

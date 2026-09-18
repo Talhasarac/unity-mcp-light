@@ -119,7 +119,7 @@ namespace MCPForUnity.Editor.Tools.Prefabs
                 {
                     if (it.propertyPath == "m_Script" || it.propertyPath == "m_Enabled") continue;
                     SerializedProperty dp = def?.FindProperty(it.propertyPath);
-                    if (dp != null && SerializedProperty.DataEquals(it, dp)) continue;
+                    if (SameAsDefault(it, dp)) continue;
                     RenderProperty(it.Copy(), dp, 4, MaxFieldDepth, lines, refs, null);
                 }
                 while (it.NextVisible(false));
@@ -177,12 +177,35 @@ namespace MCPForUnity.Editor.Tools.Prefabs
                     lines.Add($"{pad}{name}: {{...}}");
                     return;
                 }
+                var children = new List<string>();
+                RenderChildren(p, dp, indent + 2, depthLeft - 1, children, refs);
+                if (children.Count == 0 && dp != null) return; // differed only by float noise
                 lines.Add($"{pad}{name}:");
-                RenderChildren(p, dp, indent + 2, depthLeft - 1, lines, refs);
+                lines.AddRange(children);
                 return;
             }
 
             lines.Add($"{pad}{name}: {FormatValue(p, refs)}");
+        }
+
+        /// <summary>
+        /// Equal to the default: identical data, or a leaf value that prints the same (float noise such as
+        /// -0 vs 0 or a 1e-8 rotation is not worth a line). References are compared exactly.
+        /// </summary>
+        private static bool SameAsDefault(SerializedProperty p, SerializedProperty dp)
+        {
+            if (dp == null) return false;
+            if (SerializedProperty.DataEquals(p, dp)) return true;
+            if (p.propertyType != dp.propertyType || p.isArray || p.hasVisibleChildren) return false;
+            switch (p.propertyType)
+            {
+                case SerializedPropertyType.Generic:
+                case SerializedPropertyType.ManagedReference:
+                case SerializedPropertyType.ObjectReference:
+                    return false;
+                default:
+                    return FormatValue(p, null) == FormatValue(dp, null);
+            }
         }
 
         private static void RenderChildren(SerializedProperty p, SerializedProperty dp, int indent, int depthLeft,
@@ -195,7 +218,7 @@ namespace MCPForUnity.Editor.Tools.Prefabs
             {
                 enter = false;
                 SerializedProperty dc = dp?.FindPropertyRelative(child.name);
-                if (dc != null && SerializedProperty.DataEquals(child, dc)) continue;
+                if (SameAsDefault(child, dc)) continue;
                 RenderProperty(child.Copy(), dc, indent, depthLeft, lines, refs, null);
             }
         }
@@ -265,7 +288,9 @@ namespace MCPForUnity.Editor.Tools.Prefabs
                     GameObject go = EditorUtility.CreateGameObjectWithHideFlags("__inspect_prefab_default", HideFlags.HideAndDontSave);
                     SceneManager.MoveGameObjectToScene(go, _scene);
                     go.SetActive(false);
-                    Component c = type == typeof(Transform) ? go.transform : (go.GetComponent(type) ?? go.AddComponent(type));
+                    // GetComponent returns Unity's fake-null for a missing component, so compare with ==, not ??.
+                    Component c = type == typeof(Transform) ? go.transform : go.GetComponent(type);
+                    if (c == null) c = go.AddComponent(type);
                     return c != null ? new SerializedObject(c) : null;
                 }
                 catch (Exception e)

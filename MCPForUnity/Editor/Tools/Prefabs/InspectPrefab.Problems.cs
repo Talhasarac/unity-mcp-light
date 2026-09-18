@@ -182,7 +182,7 @@ namespace MCPForUnity.Editor.Tools.Prefabs
                 }
             }
 
-            if (c is Renderer r) CheckSubmeshes(r, where, report);
+            if (c is MeshRenderer || c is SkinnedMeshRenderer) CheckSubmeshes((Renderer)c, where, report);
             if (c is MeshFilter mf && mf.sharedMesh == null && mf.GetComponent<MeshRenderer>() != null)
             {
                 using (var so = new SerializedObject(mf))
@@ -195,7 +195,14 @@ namespace MCPForUnity.Editor.Tools.Prefabs
 
         private static void CheckSubmeshes(Renderer r, string where, ProblemReport report)
         {
-            Mesh mesh = r is SkinnedMeshRenderer smr ? smr.sharedMesh : r.GetComponent<MeshFilter>()?.sharedMesh;
+            Mesh mesh;
+            if (r is SkinnedMeshRenderer smr) mesh = smr.sharedMesh;
+            else
+            {
+                // Unity returns a fake-null MeshFilter when none is attached; compare with ==, not ?.
+                MeshFilter filter = r.GetComponent<MeshFilter>();
+                mesh = filter != null ? filter.sharedMesh : null;
+            }
             if (mesh == null) return;
             int materials = r.sharedMaterials.Length;
             if (materials > mesh.subMeshCount)

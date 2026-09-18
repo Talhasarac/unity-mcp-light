@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -141,20 +142,28 @@ namespace MCPForUnity.Editor.Tools.Prefabs
             var addedObjects = PrefabUtility.GetAddedGameObjects(inst);
             var removedObjects = RemovedObjectLines(inst, root);
 
-            int propCount = byTarget.Sum(b => b.mods.Count);
-            hasChanges = propCount > 0 || added.Count > 0 || removed.Count > 0 || addedObjects.Count > 0 || removedObjects.Count > 0;
-
-            string where = inst.transform == root ? $"root ({sourceName} base)" : $"@{sourceName} at {instPath}";
-            lines.Add($"{where}: {propCount} props on {byTarget.Count} objs, +{added.Count}/-{removed.Count} comps, " +
-                      $"+{addedObjects.Count}/-{removedObjects.Count} objs{(defaultOverrides > 0 ? $" ({defaultOverrides} default overrides hidden)" : "")}");
-
+            int unchangedMods = 0, editorHints = 0, propCount = 0, objCount = 0;
+            var propLines = new List<string>();
             foreach (var (targetObj, list) in byTarget)
             {
-                lines.Add("  " + DescribeModTarget(targetObj, map, root, refs));
-                foreach (PropertyModification mod in list.Take(MaxModsPerObject))
-                    lines.Add($"    {FieldPath(mod.propertyPath)}: {OldValue(mod, refs)} -> {NewValue(mod, refs)}");
-                if (list.Count > MaxModsPerObject) lines.Add($"    ... +{list.Count - MaxModsPerObject} more");
+                var changes = ModificationLines(targetObj, list, refs, ref unchangedMods, ref editorHints);
+                if (changes.Count == 0) continue;
+                objCount++;
+                propCount += changes.Count;
+                propLines.Add("  " + DescribeModTarget(targetObj, map, root, refs));
+                propLines.AddRange(changes.Take(MaxModsPerObject).Select(c => "    " + c));
+                if (changes.Count > MaxModsPerObject) propLines.Add($"    ... +{changes.Count - MaxModsPerObject} more");
             }
+            hasChanges = propCount > 0 || added.Count > 0 || removed.Count > 0 || addedObjects.Count > 0 || removedObjects.Count > 0;
+
+            var hidden = new List<string>();
+            if (defaultOverrides > 0) hidden.Add($"{defaultOverrides} default");
+            if (unchangedMods > 0) hidden.Add($"{unchangedMods} equal to source");
+            if (editorHints > 0) hidden.Add($"{editorHints} editor-only");
+            string where = inst.transform == root ? $"root ({sourceName} base)" : $"@{sourceName} at {instPath}";
+            lines.Add($"{where}: {propCount} changes on {objCount} objs, +{added.Count}/-{removed.Count} comps, " +
+                      $"+{addedObjects.Count}/-{removedObjects.Count} objs{(hidden.Count > 0 ? $" (hidden overrides: {string.Join(", ", hidden)})" : "")}");
+            lines.AddRange(propLines);
 
             foreach (AddedComponent a in added)
             {
@@ -175,6 +184,103 @@ namespace MCPForUnity.Editor.Tools.Prefabs
             }
             lines.AddRange(removedObjects);
             return lines;
+        }
+
+        /// <summary>
+        /// "field: old -> new" lines for one modified object. Vector/color/quaternion components (.x/.y/.z/.w,
+        /// .r/.g/.b/.a) are merged into one line, rotations print as euler angles, the editor-only
+        /// m_LocalEulerAnglesHint is dropped, and overrides equal to the source value are counted, not listed.
+        /// </summary>
+        private static List<string> ModificationLines(Object target, List<PropertyModification> mods, RefPrinter refs,
+            ref int unchanged, ref int editorHints)
+        {
+            var lines = new List<string>();
+            SerializedObject so = target != null ? new SerializedObject(target) : null;
+            try
+            {
+                foreach (var group in mods.GroupBy(m => VectorStem(m.propertyPath) ?? m.propertyPath))
+                {
+                    if (group.Key.StartsWith("m_LocalEulerAnglesHint", StringComparison.Ordinal))
+                    {
+                        editorHints += group.Count();
+                        continue;
+                    }
+                    SerializedProperty stem = so?.FindProperty(group.Key);
+                    if (stem != null && group.All(m => VectorStem(m.propertyPath) == group.Key) && TryMergeVector(stem, group, refs, out string oldV, out string newV))
+                    {
+                        if (oldV == newV) unchanged += group.Count();
+                        else lines.Add($"{FieldPath(group.Key)}: {oldV} -> {newV}");
+                        continue;
+                    }
+                    foreach (PropertyModification mod in group)
+                    {
+                        string oldValue = OldValue(mod, refs);
+                        string newValue = NewValue(mod, refs);
+                        if (oldValue == newValue) unchanged++;
+                        else lines.Add($"{FieldPath(mod.propertyPath)}: {oldValue} -> {newValue}");
+                    }
+                }
+            }
+            finally
+            {
+                so?.Dispose();
+            }
+            return lines;
+        }
+
+        /// <summary>"m_LocalPosition.x" -> "m_LocalPosition"; null when the path is not a vector component.</summary>
+        private static string VectorStem(string propertyPath)
+        {
+            int dot = propertyPath.LastIndexOf('.');
+            if (dot <= 0 || dot != propertyPath.Length - 2) return null;
+            return "xyzwrgba".IndexOf(propertyPath[dot + 1]) >= 0 ? propertyPath.Substring(0, dot) : null;
+        }
+
+        private static bool TryMergeVector(SerializedProperty stem, IEnumerable<PropertyModification> mods, RefPrinter refs,
+            out string oldValue, out string newValue)
+        {
+            oldValue = newValue = null;
+            var values = new Dictionary<char, float>();
+            foreach (PropertyModification mod in mods)
+            {
+                if (!float.TryParse(mod.value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float v)) return false;
+                values[mod.propertyPath[mod.propertyPath.Length - 1]] = v;
+            }
+            float Pick(char c, float current) => values.TryGetValue(c, out float v) ? v : current;
+
+            switch (stem.propertyType)
+            {
+                case SerializedPropertyType.Vector2:
+                    Vector2 v2 = stem.vector2Value;
+                    oldValue = FormatValue(stem, refs);
+                    newValue = Tuple(Pick('x', v2.x), Pick('y', v2.y));
+                    return true;
+                case SerializedPropertyType.Vector3:
+                    Vector3 v3 = stem.vector3Value;
+                    oldValue = FormatValue(stem, refs);
+                    newValue = Tuple(Pick('x', v3.x), Pick('y', v3.y), Pick('z', v3.z));
+                    return true;
+                case SerializedPropertyType.Vector4:
+                    Vector4 v4 = stem.vector4Value;
+                    oldValue = FormatValue(stem, refs);
+                    newValue = Tuple(Pick('x', v4.x), Pick('y', v4.y), Pick('z', v4.z), Pick('w', v4.w));
+                    return true;
+                case SerializedPropertyType.Quaternion:
+                    Quaternion q = stem.quaternionValue;
+                    var nq = new Quaternion(Pick('x', q.x), Pick('y', q.y), Pick('z', q.z), Pick('w', q.w));
+                    oldValue = FormatValue(stem, refs);
+                    Vector3 e = nq.eulerAngles;
+                    newValue = "euler" + Tuple(e.x, e.y, e.z);
+                    return true;
+                case SerializedPropertyType.Color:
+                    Color c = stem.colorValue;
+                    var nc = new Color(Pick('r', c.r), Pick('g', c.g), Pick('b', c.b), Pick('a', c.a));
+                    oldValue = FormatValue(stem, refs);
+                    newValue = FormatColorValue(nc);
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         private static List<string> RemovedObjectLines(GameObject inst, Transform root)
