@@ -48,6 +48,7 @@ Each removed tool is gone from the Python server, the Unity handlers, the CLI, t
 
 Other changes:
 - **Smaller schemas.** Optional parameters no longer carry Pydantic's null padding. `Optional[str] = None` used to be advertised as `{"anyOf": [{"type": "string"}, {"type": "null"}], "default": null}` and is now just `{"type": "string"}`. That alone saves about 3.5k tokens. Explicit `null` arguments are still accepted.
+- `read_console` returns **errors only** by default (it used to return errors, warnings and logs). Projects with many warnings no longer flood the context; pass `types=["error", "warning"]` when you want warnings.
 - `get_test_job` now recommends a `wait_timeout` of 15–30 seconds instead of 30–60.
 
 ## Install

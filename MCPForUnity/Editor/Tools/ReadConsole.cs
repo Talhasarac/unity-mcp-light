@@ -185,7 +185,7 @@ namespace MCPForUnity.Editor.Tools
                     // Extract parameters for 'get'
                     var types =
                         (p.GetRaw("types") as JArray)?.Select(t => t.ToString().ToLower()).ToList()
-                        ?? new List<string> { "error", "warning" };
+                        ?? new List<string> { "error" };
                     int? count = p.GetInt("count");
                     int? pageSize = p.GetInt("pageSize");
                     int? cursor = p.GetInt("cursor");

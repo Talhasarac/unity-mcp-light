@@ -336,7 +336,7 @@ Path Conventions:
 - Use forward slashes (/) in paths for cross-platform compatibility
 
 Console Monitoring:
-- Check `read_console` regularly to catch errors, warnings, and compilation status
+- Check `read_console` regularly to catch errors and compilation status (it returns errors only unless you ask for warnings)
 - Filter by log type (Error, Warning, Log) to focus on specific issues
 
 Menu Items:

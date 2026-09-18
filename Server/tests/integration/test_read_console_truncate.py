@@ -246,3 +246,26 @@ async def test_read_console_types_validation(monkeypatch):
     assert resp["success"] is False
     assert "types entries must be strings" in resp["message"]
     assert captured == {}
+
+
+@pytest.mark.asyncio
+async def test_read_console_defaults_to_errors_only(monkeypatch):
+    tools = setup_console_tools()
+    read_console = tools["read_console"]
+
+    captured = {}
+
+    async def fake_send_with_unity_instance(_send_fn, _unity_instance, _command_type, params, **_kwargs):
+        captured["params"] = params
+        return {"success": True, "data": {"lines": []}}
+
+    import services.tools.read_console as read_console_mod
+    monkeypatch.setattr(
+        read_console_mod,
+        "send_with_unity_instance",
+        fake_send_with_unity_instance,
+    )
+
+    resp = await read_console(ctx=DummyContext(), action="get")
+    assert resp["success"] is True
+    assert captured["params"]["types"] == ["error"]

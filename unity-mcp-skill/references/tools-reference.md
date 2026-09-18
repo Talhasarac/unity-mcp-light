@@ -724,7 +724,7 @@ Read or clear Unity console messages.
 # Get recent messages
 read_console(
     action="get",
-    types=["error", "warning", "log"],  # or ["all"]
+    types=["error"],             # default; add "warning"/"log" or use ["all"] only when needed
     count=10,                    # max messages (ignored with paging)
     filter_text="NullReference", # optional text filter
     page_size=50,

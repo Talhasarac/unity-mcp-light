@@ -123,7 +123,7 @@ manage_camera(action="screenshot", capture_source="scene_view", view_target="Pla
 ```python
 read_console(
     action="get",
-    types=["error", "warning"],  # Focus on problems
+    types=["error"],  # Errors only; warnings can flood the context
     count=10,
     format="detailed"
 )

@@ -38,7 +38,7 @@ async def read_console(
                       "Get or clear the Unity Editor console. Defaults to 'get' if omitted."] | None = None,
     types: Annotated[list[Literal['error', 'warning',
                                   'log', 'all']] | str,
-                     "Message types to get (accepts list or JSON string)"] | None = None,
+                     "Message types to get (accepts list or JSON string). Defaults to ['error']."] | None = None,
     count: Annotated[int | str,
                      "Max messages to return in non-paging mode (accepts int or string, e.g., 5 or '5'). Ignored when paging with page_size/cursor."] | None = None,
     filter_text: Annotated[str, "Text filter for messages"] | None = None,
@@ -90,7 +90,9 @@ async def read_console(
             normalized_types.append(normalized)
         types = normalized_types
     else:
-        types = ['error', 'warning', 'log']
+        # Errors only by default: projects with many warnings would otherwise
+        # flood the context. Callers can still ask for warnings/logs explicitly.
+        types = ['error']
     
     format = format if format is not None else 'plain'
     # Coerce booleans defensively (strings like 'true'/'false')
