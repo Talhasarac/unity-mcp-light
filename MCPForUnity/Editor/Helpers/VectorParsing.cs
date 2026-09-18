@@ -280,7 +280,6 @@ namespace MCPForUnity.Editor.Helpers
 
         /// <summary>
         /// Parses a JToken into a Vector4, returning a default value if parsing fails.
-        /// Added for ManageVFX refactoring.
         /// </summary>
         public static Vector4 ParseVector4OrDefault(JToken token, Vector4 defaultValue = default)
         {
@@ -292,7 +291,6 @@ namespace MCPForUnity.Editor.Helpers
         /// Supports formats:
         /// - Simple: {startColor: [r,g,b,a], endColor: [r,g,b,a]}
         /// - Full: {colorKeys: [{color: [r,g,b,a], time: 0.0}, ...], alphaKeys: [{alpha: 1.0, time: 0.0}, ...]}
-        /// Added for ManageVFX refactoring.
         /// </summary>
         /// <param name="token">The JSON token to parse</param>
         /// <returns>The parsed Gradient or null if parsing fails</returns>
@@ -373,7 +371,6 @@ namespace MCPForUnity.Editor.Helpers
 
         /// <summary>
         /// Parses a JToken into a Gradient, returning a default gradient if parsing fails.
-        /// Added for ManageVFX refactoring.
         /// </summary>
         public static Gradient ParseGradientOrDefault(JToken token)
         {
@@ -407,7 +404,7 @@ namespace MCPForUnity.Editor.Helpers
         ///   <item><c>outTangent</c> (float): <b>Default: 0</b></item>
         /// </list>
         /// 
-        /// <para><b>Note:</b> This method is used by ManageVFX. For ScriptableObject patching,
+        /// <para><b>Note:</b> For ScriptableObject patching,
         /// see <see cref="MCPForUnity.Editor.Tools.ManageScriptableObject"/> which has slightly different defaults.</para>
         /// </summary>
         /// <param name="token">The JSON token to parse</param>
@@ -464,7 +461,6 @@ namespace MCPForUnity.Editor.Helpers
 
         /// <summary>
         /// Parses a JToken into an AnimationCurve, returning a constant curve if parsing fails.
-        /// Added for ManageVFX refactoring.
         /// </summary>
         /// <param name="token">The JSON token to parse</param>
         /// <param name="defaultValue">The constant value for the default curve</param>

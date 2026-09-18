@@ -21,19 +21,12 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
     /// </summary>
     public class McpAssetGenSection
     {
-        // Fixed provider lists. Each Id is both the SecureKeyStore key and the
-        // AssetGenPrefs enable-flag id. All model/marketplace providers below emit GLB.
+        // Fixed provider list. Each Id is both the SecureKeyStore key and the
+        // AssetGenPrefs enable-flag id. Only the Sketchfab marketplace remains; the
+        // generation providers were removed along with the generate_* tools.
         private static readonly (string Id, string Label)[] ModelProviders =
         {
-            ("tripo", "Tripo"),
-            ("meshy", "Meshy"),
             ("sketchfab", "Sketchfab"),
-        };
-
-        private static readonly (string Id, string Label)[] ImageProviders =
-        {
-            ("fal", "fal"),
-            ("openrouter", "OpenRouter"),
         };
 
         // UI Elements
@@ -174,15 +167,6 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
                 var toggle = AddProviderRow(modelPanel, provider.Id, provider.Label, "model");
                 modelEnableToggles.Add((provider.Id, toggle));
             }
-
-            var imagePanel = AddCategoryPanel("2D Images");
-            foreach (var provider in ImageProviders)
-            {
-                AddProviderRow(imagePanel, provider.Id, provider.Label, "image");
-            }
-
-            var audioPanel = AddCategoryPanel("Sound (fal.ai)");
-            AddAudioRow(audioPanel);
 
             AddBlenderHandoffRow();
         }
@@ -446,45 +430,6 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
                 UpdateModelMeta(meta, picked);
                 UpdateModelCaveat(caveat, picked);
             });
-        }
-
-        /// <summary>
-        /// Audio row: no enable toggle and no key field — audio reuses the single fal key owned by
-        /// the Image "fal" row. Surfaces that key's presence and a fal-audio model dropdown.
-        /// </summary>
-        private void AddAudioRow(VisualElement parent)
-        {
-            var row = new VisualElement();
-            row.style.marginBottom = 8;
-            row.style.paddingBottom = 8;
-            row.style.borderBottomWidth = 1;
-            row.style.borderBottomColor = new Color(0.3f, 0.3f, 0.3f, 0.3f);
-
-            // Header: name + shared-key status inline to its right. No key field — audio reuses the
-            // fal key owned by the 2D fal row.
-            var header = new VisualElement();
-            header.style.flexDirection = FlexDirection.Row;
-            header.style.alignItems = Align.Center;
-            header.style.marginBottom = 2;
-
-            var nameLabel = new Label("fal (audio)");
-            nameLabel.style.unityFontStyleAndWeight = FontStyle.Bold;
-            nameLabel.style.flexShrink = 0;
-            header.Add(nameLabel);
-
-            bool hasFal = HasKey("fal");
-            var status = new Label(hasFal ? "key present ✓ (shared with 2D fal)" : "no fal key — set it in 2D Images");
-            status.AddToClassList("help-text");
-            status.style.color = hasFal ? new Color(0.4f, 0.8f, 0.4f) : new Color(0.7f, 0.7f, 0.7f);
-            status.style.flexGrow = 1;
-            status.style.marginLeft = 8;
-            header.Add(status);
-
-            row.Add(header);
-
-            AddModelDropdown(row, "audio", "fal");
-
-            parent.Add(row);
         }
 
         /// <summary>

@@ -46,12 +46,12 @@
       "description": "Delete C# scripts"
     },
     {
-      "name": "execute_custom_tool",
-      "description": "Execute custom Unity Editor tools registered by the project"
-    },
-    {
       "name": "execute_code",
       "description": "Execute arbitrary C# code inside the Unity Editor with access to all Unity APIs"
+    },
+    {
+      "name": "execute_custom_tool",
+      "description": "Execute custom Unity Editor tools registered by the project"
     },
     {
       "name": "execute_menu_item",
@@ -74,12 +74,24 @@
       "description": "Get status of async test job"
     },
     {
+      "name": "import_model",
+      "description": "Search and import 3D models from the Sketchfab marketplace"
+    },
+    {
+      "name": "import_model_file",
+      "description": "Import a local 3D model file (.fbx/.obj/.glb/.gltf/.zip) into the project"
+    },
+    {
       "name": "manage_asset",
       "description": "Create, modify, search, and organize Unity assets"
     },
     {
       "name": "manage_build",
       "description": "Manage player builds: trigger builds, switch platforms, configure settings, batch builds"
+    },
+    {
+      "name": "manage_camera",
+      "description": "Manage cameras (Unity Camera + Cinemachine) with presets, pipelines, and blending"
     },
     {
       "name": "manage_components",
@@ -92,10 +104,6 @@
     {
       "name": "manage_gameobject",
       "description": "Create, modify, transform, and delete GameObjects"
-    },
-    {
-      "name": "manage_camera",
-      "description": "Manage cameras (Unity Camera + Cinemachine) with presets, pipelines, and blending"
     },
     {
       "name": "manage_graphics",

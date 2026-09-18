@@ -441,14 +441,11 @@ def render_resources_catalog(resources: list[dict[str, Any]]) -> str:
 
 GROUP_BLURBS_FALLBACK = {
     "core": "Essential scene, script, asset, and editor tools — always on by default.",
-    "docs": "Unity API reflection and documentation lookup.",
-    "vfx": "Visual effects — VFX Graph, shaders, procedural textures.",
-    "animation": "Animator control and AnimationClip creation.",
+    "docs": "Unity API reflection.",
     "ui": "UI Toolkit — UXML, USS, UIDocument.",
     "scripting_ext": "ScriptableObject management.",
     "testing": "Test runner and async test jobs.",
-    "probuilder": "ProBuilder 3D modeling — requires `com.unity.probuilder`.",
-    "profiling": "Unity Profiler session control, counters, memory snapshots, Frame Debugger.",
+    "asset_gen": "3D model import — Sketchfab marketplace and local model files.",
 }
 
 

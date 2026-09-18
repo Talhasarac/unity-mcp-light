@@ -19,12 +19,6 @@
     ],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [
-        {
-            "name": "com.unity.visualeffectgraph",
-            "expression": "0.0.0",
-            "define": "UNITY_VFX_GRAPH"
-        }
-    ],
+    "versionDefines": [],
     "noEngineReferences": false
 }

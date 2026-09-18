@@ -124,8 +124,9 @@ directly.
   them to image textures in Blender first.
 - **Animation doesn't auto-play.** An imported clip won't move the model until an `AnimatorController`
   drives it — the placed model has an `Animator` with a **null controller**, so it looks frozen. Build
-  one with `manage_animation` (`controller_create` → add the clip as a looping state → `controller_assign`
-  onto the instance) rather than hand-rolling `execute_code`. See bridge-fidelity gotcha #7.
+  one with `execute_code`: `AnimatorController.CreateAnimatorControllerAtPath`, add the clip as the
+  default state with `loopTime` on, then assign it to the instance's `Animator.runtimeAnimatorController`.
+  See bridge-fidelity gotcha #7.
 - **Multi-material zones survive.** A mesh split into material slots in Blender (e.g. skin/shirt/pants
   regions) imports as submeshes with one material each — base colors carry over GLB natively — so you
   can "dress" a model with material zones and it arrives intact.

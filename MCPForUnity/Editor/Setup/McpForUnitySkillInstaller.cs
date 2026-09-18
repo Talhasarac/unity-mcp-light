@@ -16,7 +16,7 @@ namespace MCPForUnity.Editor.Setup
         private const string InstallDirKey = "UnityMcpSkillSync.InstallDir";
         private const string CodexCli = "codex";
         private const string ClaudeCli = "claude";
-        private static readonly string[] BranchOptions = { "beta", "main" };
+        private static readonly string[] BranchOptions = { "beta" };
         private static readonly string[] CliOptions = { CodexCli, ClaudeCli };
 
         private string _repoUrl;
@@ -36,7 +36,7 @@ namespace MCPForUnity.Editor.Setup
         private void OnEnable()
         {
             var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            _repoUrl = EditorPrefs.GetString(RepoUrlKey, "https://github.com/CoplayDev/unity-mcp");
+            _repoUrl = EditorPrefs.GetString(RepoUrlKey, "https://github.com/Talhasarac/unity-mcp-light");
             _targetBranch = EditorPrefs.GetString(BranchKey, "beta");
             if (!BranchOptions.Contains(_targetBranch))
             {

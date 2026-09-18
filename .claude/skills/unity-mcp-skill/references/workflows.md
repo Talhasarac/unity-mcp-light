@@ -12,9 +12,7 @@ Common workflows and patterns for effective Unity-MCP usage.
 - [Debugging Workflows](#debugging-workflows)
 - [UI Creation Workflows](#ui-creation-workflows)
 - [Camera & Cinemachine Workflows](#camera--cinemachine-workflows)
-- [ProBuilder Workflows](#probuilder-workflows)
 - [Graphics & Rendering Workflows](#graphics--rendering-workflows)
-- [Package Management Workflows](#package-management-workflows)
 - [Package Deployment Workflows](#package-deployment-workflows)
 - [API Verification Workflows](#api-verification-workflows)
 - [Batch Operations](#batch-operations)
@@ -351,37 +349,6 @@ manage_material(
 
 # 3. Verify visually
 manage_camera(action="screenshot")
-```
-
-### Create Procedural Texture
-
-```python
-# 1. Create base texture
-manage_texture(
-    action="create",
-    path="Assets/Textures/Checkerboard.png",
-    width=256,
-    height=256,
-    fill_color=[255, 255, 255, 255]
-)
-
-# 2. Apply checkerboard pattern
-manage_texture(
-    action="apply_pattern",
-    path="Assets/Textures/Checkerboard.png",
-    pattern="checkerboard",
-    palette=[[0, 0, 0, 255], [255, 255, 255, 255]],
-    pattern_size=32
-)
-
-# 3. Create material with texture
-manage_material(
-    action="create",
-    material_path="Assets/Materials/CheckerMaterial.mat",
-    shader="Standard"
-)
-
-# 4. Assign texture to material (via manage_material set_material_shader_property)
 ```
 
 ### Organize Assets into Folders
@@ -1583,88 +1550,6 @@ manage_camera(action="screenshot", capture_source="scene_view",
 
 ---
 
-## ProBuilder Workflows
-
-When `com.unity.probuilder` is installed, prefer ProBuilder shapes over primitive GameObjects for any geometry that needs editing, multi-material faces, or non-trivial shapes. Check availability first with `manage_probuilder(action="ping")`.
-
-See [ProBuilder Workflow Guide](probuilder-guide.md) for full reference with complex object examples.
-
-### ProBuilder vs Primitives Decision
-
-| Need | Use Primitives | Use ProBuilder |
-|------|---------------|----------------|
-| Simple placeholder cube | `manage_gameobject(action="create", primitive_type="Cube")` | - |
-| Editable geometry | - | `manage_probuilder(action="create_shape", ...)` |
-| Per-face materials | - | `set_face_material` |
-| Custom shapes (L-rooms, arches) | - | `create_poly_shape` or `create_shape` |
-| Mesh editing (extrude, bevel) | - | Face/edge/vertex operations |
-| Batch environment building | Either | ProBuilder + `batch_execute` |
-
-### Basic ProBuilder Scene Build
-
-```python
-# 1. Check ProBuilder availability
-manage_probuilder(action="ping")
-
-# 2. Create shapes (use batch for multiple)
-batch_execute(commands=[
-    {"tool": "manage_probuilder", "params": {
-        "action": "create_shape",
-        "properties": {"shape_type": "Cube", "name": "Floor", "width": 20, "height": 0.2, "depth": 20}
-    }},
-    {"tool": "manage_probuilder", "params": {
-        "action": "create_shape",
-        "properties": {"shape_type": "Cube", "name": "Wall1", "width": 20, "height": 3, "depth": 0.3,
-                       "position": [0, 1.5, 10]}
-    }},
-    {"tool": "manage_probuilder", "params": {
-        "action": "create_shape",
-        "properties": {"shape_type": "Cylinder", "name": "Pillar1", "radius": 0.4, "height": 3,
-                       "position": [5, 1.5, 5]}
-    }},
-])
-
-# 3. Edit geometry (always get_mesh_info first!)
-info = manage_probuilder(action="get_mesh_info", target="Wall1",
-    properties={"include": "faces"})
-# Find direction="front" face, subdivide it, delete center for a window
-
-# 4. Apply materials per face
-manage_probuilder(action="set_face_material", target="Floor",
-    properties={"faceIndices": [0], "materialPath": "Assets/Materials/Stone.mat"})
-
-# 5. Smooth organic shapes
-manage_probuilder(action="auto_smooth", target="Pillar1",
-    properties={"angleThreshold": 45})
-
-# 6. Screenshot to verify
-manage_camera(action="screenshot", include_image=True, max_resolution=512)
-```
-
-### Edit-Verify Loop Pattern
-
-Face indices change after every edit. Always re-query:
-
-```python
-# WRONG: Assume face indices are stable
-manage_probuilder(action="subdivide", target="Obj", properties={"faceIndices": [2]})
-manage_probuilder(action="delete_faces", target="Obj", properties={"faceIndices": [5]})  # Index may be wrong!
-
-# RIGHT: Re-query after each edit
-manage_probuilder(action="subdivide", target="Obj", properties={"faceIndices": [2]})
-info = manage_probuilder(action="get_mesh_info", target="Obj", properties={"include": "faces"})
-# Find the correct face by direction/center, then delete
-manage_probuilder(action="delete_faces", target="Obj", properties={"faceIndices": [correct_index]})
-```
-
-### Known Limitations
-
-- **`set_pivot`**: Broken -- vertex positions don't persist through mesh rebuild. Use `center_pivot` or Transform positioning.
-- **`convert_to_probuilder`**: Broken -- MeshImporter throws. Create shapes natively with `create_shape`/`create_poly_shape`.
-- **`subdivide`**: Uses `ConnectElements.Connect` (not traditional quad subdivision). Connects face midpoints.
-
----
-
 ## Graphics & Rendering Workflows
 
 ### Setting Up Post-Processing
@@ -1799,73 +1684,6 @@ manage_graphics(action="stats_get")
 
 ---
 
-## Package Management Workflows
-
-### Install a Package and Verify
-
-```python
-# 1. Check what's installed
-manage_packages(action="ping")
-manage_packages(action="list_packages")
-# Poll status until complete
-manage_packages(action="status", job_id="<job_id>")
-
-# 2. Install the package
-manage_packages(action="add_package", package="com.unity.inputsystem")
-# Poll until domain reload completes
-manage_packages(action="status", job_id="<job_id>")
-
-# 3. Verify no compilation errors
-read_console(types=["error"], count=10)
-
-# 4. Confirm it's installed
-manage_packages(action="get_package_info", package="com.unity.inputsystem")
-```
-
-### Add OpenUPM Registry and Install Package
-
-```python
-# 1. Add the OpenUPM scoped registry
-manage_packages(
-    action="add_registry",
-    name="OpenUPM",
-    url="https://package.openupm.com",
-    scopes=["com.cysharp"]
-)
-
-# 2. Force resolution to pick up the new registry
-manage_packages(action="resolve_packages")
-
-# 3. Install a package from OpenUPM
-manage_packages(action="add_package", package="com.cysharp.unitask")
-manage_packages(action="status", job_id="<job_id>")
-```
-
-### Safe Package Removal
-
-```python
-# 1. Check dependencies before removing
-manage_packages(action="remove_package", package="com.unity.modules.ui")
-# If blocked: "Cannot remove: 3 package(s) depend on it"
-
-# 2. Force removal if you're sure
-manage_packages(action="remove_package", package="com.unity.modules.ui", force=True)
-manage_packages(action="status", job_id="<job_id>")
-```
-
-### Install from Git URL (e.g., NuGetForUnity)
-
-```python
-# Git URLs trigger a security warning — ensure the source is trusted
-manage_packages(
-    action="add_package",
-    package="https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity"
-)
-manage_packages(action="status", job_id="<job_id>")
-```
-
----
-
 ## Package Deployment Workflows
 
 ### Iterative Development Loop (Edit → Deploy → Test)
@@ -1905,11 +1723,13 @@ refresh_unity(mode="force", compile="request", wait_for_ready=True)
 
 ## API Verification Workflows
 
+> These tools live in the opt-in `docs` group. Activate it first: `manage_tools(action="activate", group="docs")`
+
 ### Full API Verification Before Writing Code
 
-Use `unity_reflect` and `unity_docs` to verify Unity APIs before writing C# code. This prevents hallucinated or outdated API references.
+Use `unity_reflect` to verify Unity APIs before writing C# code. This prevents hallucinated or outdated API references.
 
-**Trust hierarchy:** reflection (live runtime) > project assets > official docs.
+**Trust hierarchy:** reflection (live runtime) > project assets.
 
 ```python
 # Step 1: Search for the type you need
@@ -1924,52 +1744,11 @@ unity_reflect(action="get_type", class_name="UnityEngine.AI.NavMeshAgent")
 unity_reflect(action="get_member", class_name="NavMeshAgent", member_name="SetDestination")
 # → Returns parameter types, return type, all overloads
 
-# Step 4: Get official docs for usage patterns and examples
-unity_docs(action="get_doc", class_name="NavMeshAgent", member_name="SetDestination")
-# → Returns description, signatures, parameters, code examples
-```
-
-### Batch API Lookup
-
-Use `unity_docs` `lookup` action to search multiple APIs in a single call:
-
-```python
-# Search ScriptReference + Manual + package docs in parallel
-unity_docs(action="lookup", queries="Physics.Raycast,NavMeshAgent,Light2D")
-
-# Include package docs in the search
-unity_docs(action="lookup", query="VolumeProfile",
-           package="com.unity.render-pipelines.universal", pkg_version="17.0")
-```
-
-### Finding Shaders and Materials in Project
-
-The `lookup` action automatically searches project assets for asset-related queries:
-
-```python
-# This searches both docs AND project assets for shader-related content
-unity_docs(action="lookup", query="Lit shader")
-# → Returns doc hits + matching project assets (shaders, materials, etc.)
-```
-
-### Manual and Package Documentation
-
-```python
-# Fetch Unity Manual pages (execution order, scripting concepts, etc.)
-unity_docs(action="get_manual", slug="execution-order")
-
-# Fetch package-specific documentation
-unity_docs(action="get_package_doc",
-           package="com.unity.render-pipelines.universal",
-           page="2d-index", pkg_version="17.0")
 ```
 
 ### Verifying APIs Across Unity Versions
 
 ```python
-# Specify Unity version for version-specific docs
-unity_docs(action="get_doc", class_name="Camera", member_name="main", version="6000.0.38f1")
-
 # Use reflection to check what's actually available in the running editor
 unity_reflect(action="search", query="InputAction", scope="packages")
 ```

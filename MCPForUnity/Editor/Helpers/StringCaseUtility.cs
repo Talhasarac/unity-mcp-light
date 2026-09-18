@@ -6,7 +6,7 @@ namespace MCPForUnity.Editor.Helpers
 {
     /// <summary>
     /// Utility class for converting between naming conventions (snake_case, camelCase).
-    /// Consolidates previously duplicated implementations from ToolParams, ManageVFX,
+    /// Consolidates previously duplicated implementations from ToolParams,
     /// BatchExecute, CommandRegistry, and ToolDiscoveryService.
     /// </summary>
     public static class StringCaseUtility

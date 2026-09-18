@@ -74,7 +74,7 @@ MCP for Unity 将工具组织为**分组**（Core、VFX & Shaders、Animation、
 | Action | 描述 |
 |--------|------|
 | `list_groups` | 列出所有工具分组及其工具和启用/禁用状态 |
-| `activate` | 按名称启用一个工具分组（例如 `group="vfx"`） |
+| `activate` | 按名称启用一个工具分组（例如 `group="ui"`） |
 | `deactivate` | 按名称禁用一个工具分组 |
 | `sync` | 从 Unity 拉取当前工具状态并同步服务器可见性（stdio 模式必需） |
 | `reset` | 恢复默认工具可见性 |

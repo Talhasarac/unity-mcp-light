@@ -8,7 +8,7 @@ namespace MCPForUnity.Editor.Helpers
 {
     /// <summary>
     /// Utility class for common Renderer property operations.
-    /// Used by ManageVFX for ParticleSystem, LineRenderer, and TrailRenderer components.
+    /// Used by ManageComponents and ManageMaterial.
     /// </summary>
     public static class RendererHelpers
     {
