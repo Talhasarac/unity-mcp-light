@@ -21,6 +21,11 @@ This fork removes tools that most Unity workflows don't need and trims the defin
 |---|---|---|
 | Tools | 48 | **36** |
 | Tool definitions (approx. tokens) | ~28.9k | **~18.8k** |
+| Skill: `SKILL.md`, loaded when the skill triggers (approx. tokens) | ~3.6k | **~3.3k** |
+| Skill: reference docs, read on demand (approx. tokens) | ~41.2k (4 files) | **~31.8k** (3 files) |
+| Skill total (approx. tokens) | ~44.8k | **~35.1k** |
+
+The skill drops the ProBuilder guide and every section about removed tools. Token counts are characters ÷ 4.
 
 Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, shaders, procedural textures, camera, graphics, physics, builds, tests, UI Toolkit, API reflection — works the same as upstream.
 
