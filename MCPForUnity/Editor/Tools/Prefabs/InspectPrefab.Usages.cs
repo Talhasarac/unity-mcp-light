@@ -16,9 +16,10 @@ namespace MCPForUnity.Editor.Tools.Prefabs
 
         /// <summary>
         /// mode=usages: every prefab and scene under Assets/ that uses a script (script=ClassName) or an asset
-        /// (asset=Assets/...). Candidates are narrowed with AssetDatabase.GetDependencies (direct dependencies,
-        /// followed through nested prefabs and other assets with a memo); only direct users are loaded, to list
-        /// the object paths inside them. Scenes are listed by file; paths only for scenes that are already open.
+        /// (asset=Assets/...). Direct users reference the target's GUID; the use is then followed through
+        /// nested/referenced prefabs (and, for assets, materials, controllers and data assets) to report
+        /// "via @X.prefab". GUIDs come from <see cref="GuidIndex"/>; only direct users are loaded, to list the
+        /// object paths inside them. Scenes are listed by file; paths only for scenes that are already open.
         /// </summary>
         private static string RunUsages(ToolParams p, int maxChars)
         {
@@ -61,17 +62,55 @@ namespace MCPForUnity.Editor.Tools.Prefabs
                     .Where(a => !a.EndsWith(".cs", StringComparison.OrdinalIgnoreCase)).Distinct().ToList();
             }
 
-            var finder = new DependencyFinder(targetPath);
-            var direct = new List<string>();
-            var via = new List<(string file, string through)>();
-            foreach (string file in prefabs.Concat(scenes).Concat(dataAssets))
+            // Files that can pass a use on to whatever references them: nested/referenced prefabs for scripts
+            // (plus data assets for ScriptableObject types); for assets also materials, controllers, atlases...
+            var intermediates = new List<string>();
+            if (type == null)
             {
-                if (file == targetPath) continue;
-                string how = finder.Via(file);
-                if (how == null) continue;
-                if (how.Length == 0) direct.Add(file);
-                else via.Add((file, how));
+                intermediates = AssetDatabase.FindAssets("t:Material t:AnimatorController t:AnimatorOverrideController t:SpriteAtlas t:ScriptableObject", folders)
+                    .Select(AssetDatabase.GUIDToAssetPath)
+                    .Where(a => !a.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) && SmallerThan(a, MaxIntermediateBytes))
+                    .Distinct().ToList();
             }
+
+            var reported = new HashSet<string>(prefabs.Concat(scenes).Concat(dataAssets));
+            var all = reported.Concat(intermediates).Where(f => f != targetPath).Distinct().ToList();
+            Dictionary<string, string[]> refsByFile = GuidIndex.Get(all);
+            string targetGuid = AssetDatabase.AssetPathToGUID(targetPath);
+
+            bool CanPropagate(string file) =>
+                file.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase) ||
+                (type == null && !file.EndsWith(".unity", StringComparison.OrdinalIgnoreCase)) ||
+                (type != null && dataAssets.Count > 0 && file.EndsWith(".asset", StringComparison.OrdinalIgnoreCase));
+
+            // Direct users reference the target GUID; then follow users through files that reference them.
+            var usedBy = new Dictionary<string, string>(); // file -> "" (direct) or the file it uses the target through
+            var carrierGuids = new Dictionary<string, string>(); // guid of a using file -> that file
+            foreach (string file in all)
+            {
+                if (Array.IndexOf(refsByFile[file], targetGuid) < 0) continue;
+                usedBy[file] = "";
+                if (CanPropagate(file)) carrierGuids[AssetDatabase.AssetPathToGUID(file)] = file;
+            }
+            for (bool changed = true; changed;)
+            {
+                changed = false;
+                foreach (string file in all)
+                {
+                    if (usedBy.ContainsKey(file)) continue;
+                    foreach (string guid in refsByFile[file])
+                    {
+                        if (!carrierGuids.TryGetValue(guid, out string through) || through == file) continue;
+                        usedBy[file] = through;
+                        if (CanPropagate(file)) carrierGuids[AssetDatabase.AssetPathToGUID(file)] = file;
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+
+            var direct = usedBy.Where(kv => kv.Value.Length == 0 && reported.Contains(kv.Key)).Select(kv => kv.Key).ToList();
+            var via = usedBy.Where(kv => kv.Value.Length > 0 && reported.Contains(kv.Key)).Select(kv => (file: kv.Key, through: kv.Value)).ToList();
 
             // Every class in a DLL shares the DLL path, so confirm DLL-script prefab users by their components.
             if (dll && type != null)
@@ -107,6 +146,14 @@ namespace MCPForUnity.Editor.Tools.Prefabs
 
             string note = output.Full ? $"... truncated: {direct.Count + via.Count - shown} more files. Use a larger max_chars." : null;
             return output.Finish(header, note);
+        }
+
+        private const long MaxIntermediateBytes = 16L * 1024 * 1024; // skip lighting/terrain data blobs
+
+        private static bool SmallerThan(string file, long bytes)
+        {
+            try { return new FileInfo(file).Length < bytes; }
+            catch { return false; }
         }
 
         private static int SortKey(string file) =>
@@ -224,42 +271,86 @@ namespace MCPForUnity.Editor.Tools.Prefabs
         }
 
         /// <summary>
-        /// Does a file use the target, and through what? "" = direct dependency, a path = through that
-        /// dependency (nested prefab, material, ...), null = not at all. Memoized across all files.
+        /// GUIDs referenced by each file, read straight from the text-serialized YAML ("guid: ..."), in
+        /// parallel, and cached for the editor session by file size and write time. A project-wide
+        /// AssetDatabase.GetDependencies pass costs several ms per file; this reads 8.5k prefabs in seconds
+        /// once and then only re-reads files that changed. Non-text files fall back to GetDependencies.
         /// </summary>
-        private sealed class DependencyFinder
+        private static class GuidIndex
         {
-            private readonly string _target;
-            private readonly Dictionary<string, string> _memo = new Dictionary<string, string>();
+            private static readonly Dictionary<string, (long stamp, string[] guids)> Cache =
+                new Dictionary<string, (long stamp, string[] guids)>();
+            private static readonly byte[] Token = { (byte)'g', (byte)'u', (byte)'i', (byte)'d', (byte)':', (byte)' ' };
 
-            public DependencyFinder(string target) { _target = target; }
-
-            public string Via(string file)
+            public static Dictionary<string, string[]> Get(List<string> files)
             {
-                if (_memo.TryGetValue(file, out string known)) return known;
-                _memo[file] = null; // cycle guard
-                string[] deps = AssetDatabase.GetDependencies(file, false);
-                if (deps.Contains(_target)) return _memo[file] = "";
-                foreach (string dep in deps)
+                var result = new Dictionary<string, string[]>(files.Count);
+                var stale = new List<(string file, long stamp)>();
+                lock (Cache)
                 {
-                    if (dep == file || !CanHaveDependencies(dep)) continue;
-                    if (Via(dep) != null) return _memo[file] = dep;
+                    foreach (string file in files)
+                    {
+                        long stamp = Stamp(file);
+                        if (Cache.TryGetValue(file, out var entry) && entry.stamp == stamp) result[file] = entry.guids;
+                        else stale.Add((file, stamp));
+                    }
                 }
-                return null;
+
+                var scanned = new string[stale.Count][];
+                System.Threading.Tasks.Parallel.For(0, stale.Count, i => scanned[i] = ScanText(stale[i].file));
+
+                lock (Cache)
+                {
+                    for (int i = 0; i < stale.Count; i++)
+                    {
+                        string file = stale[i].file;
+                        // Binary-serialized or unreadable: ask the AssetDatabase (main thread only).
+                        string[] guids = scanned[i] ?? AssetDatabase.GetDependencies(file, false)
+                            .Where(d => d != file).Select(AssetDatabase.AssetPathToGUID).Where(g => !string.IsNullOrEmpty(g)).ToArray();
+                        Cache[file] = (stale[i].stamp, guids);
+                        result[file] = guids;
+                    }
+                }
+                return result;
             }
 
-            private static bool CanHaveDependencies(string path)
+            private static long Stamp(string file)
             {
-                string ext = Path.GetExtension(path).ToLowerInvariant();
-                switch (ext)
+                try
                 {
-                    case ".cs": case ".dll": case ".asmdef": case ".asmref": case ".png": case ".jpg": case ".jpeg":
-                    case ".tga": case ".psd": case ".exr": case ".hdr": case ".wav": case ".mp3": case ".ogg":
-                    case ".ttf": case ".otf": case ".txt": case ".json": case ".bytes": case ".hlsl": case ".cginc":
-                        return false;
-                    default:
-                        return true;
+                    var info = new FileInfo(file);
+                    return info.Exists ? info.LastWriteTimeUtc.Ticks ^ (info.Length << 1) : 0;
                 }
+                catch
+                {
+                    return 0;
+                }
+            }
+
+            /// <summary>Distinct 32-char GUIDs after each "guid: " token; null when the file is not YAML text.</summary>
+            private static string[] ScanText(string file)
+            {
+                byte[] bytes;
+                try
+                {
+                    bytes = File.ReadAllBytes(file);
+                }
+                catch
+                {
+                    return null;
+                }
+                if (bytes.Length < 5 || bytes[0] != (byte)'%' || bytes[1] != (byte)'Y') return null;
+
+                var set = new HashSet<string>();
+                int end = bytes.Length - Token.Length - 32;
+                for (int k = 0; k <= end; k++)
+                {
+                    if (bytes[k] != Token[0] || bytes[k + 1] != Token[1] || bytes[k + 2] != Token[2] ||
+                        bytes[k + 3] != Token[3] || bytes[k + 4] != Token[4] || bytes[k + 5] != Token[5]) continue;
+                    set.Add(System.Text.Encoding.ASCII.GetString(bytes, k + Token.Length, 32));
+                    k += Token.Length + 31;
+                }
+                return set.ToArray();
             }
         }
     }
