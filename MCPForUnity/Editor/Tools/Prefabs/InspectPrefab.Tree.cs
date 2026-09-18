@@ -196,7 +196,11 @@ namespace MCPForUnity.Editor.Tools.Prefabs
             int prefix = 0;
             int max = group.Min(g => g.T.name.Length);
             while (prefix < max && group.All(g => g.T.name[prefix] == first[prefix])) prefix++;
-            if (prefix >= 2) return first + ".." + last.Substring(prefix);
+            string firstRest = first.Substring(prefix).Trim();
+            string lastRest = last.Substring(prefix).Trim();
+            // "Wheel_FL..RR" when both ends have their own suffix; "col*" when one is just the shared prefix.
+            if (prefix >= 2 && firstRest.Length > 0 && lastRest.Length > 0) return first + ".." + last.Substring(prefix);
+            if (prefix >= 2) return first.Substring(0, prefix).TrimEnd(' ', '_', '-', '(', '.') + "*";
             return first + ".." + last;
         }
     }

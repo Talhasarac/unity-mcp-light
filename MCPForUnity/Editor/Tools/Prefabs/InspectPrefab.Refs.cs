@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using MCPForUnity.Editor.Helpers;
@@ -27,18 +28,23 @@ namespace MCPForUnity.Editor.Tools.Prefabs
                 types.AddHierarchy(top);
                 var refs = new RefPrinter(top, types);
 
-                var bySource = new List<(HNode node, List<string> lines)>();
+                string componentFilter = p.Get("component")?.Trim();
+                var bySource = new List<(HNode node, List<(string comp, string line)> lines)>();
                 var assets = new Dictionary<string, AssetLinks>();
                 int wires = 0, events = 0, listeners = 0, missing = 0, assetLinks = 0;
 
                 foreach (HNode n in Walk(snap))
                 {
-                    var lines = new List<string>();
+                    var tagged = new List<(string comp, string line)>();
                     foreach (Component c in n.Comps)
                     {
                         if (c is Transform) continue;
                         bool script = c is MonoBehaviour;
                         string comp = types.Name(c.GetType());
+                        if (!string.IsNullOrEmpty(componentFilter) &&
+                            !string.Equals(comp, componentFilter, StringComparison.OrdinalIgnoreCase) &&
+                            !string.Equals(c.GetType().FullName, componentFilter, StringComparison.OrdinalIgnoreCase)) continue;
+                        var lines = new List<string>();
                         var so = new SerializedObject(c);
                         SerializedProperty it = so.GetIterator();
                         bool enter = true;
@@ -81,21 +87,22 @@ namespace MCPForUnity.Editor.Tools.Prefabs
                             wires++;
                             lines.Add($"  {comp}.{FieldPath(it.propertyPath)} -> {refs.Describe(it)}");
                         }
+                        tagged.AddRange(lines.Select(l => (comp, l)));
                     }
-                    if (lines.Count > 0) bySource.Add((n, lines));
+                    if (tagged.Count > 0) bySource.Add((n, tagged));
                 }
 
                 var output = new TextOut(maxChars);
                 int shownSources = 0;
+                string cutComponent = null;
                 foreach (var (node, lines) in bySource)
                 {
                     if (!output.Line(ShowPath(node.Rel, top))) break;
-                    bool complete = true;
-                    foreach (string line in lines)
+                    foreach (var (comp, line) in lines)
                     {
-                        if (!output.Line(line)) { complete = false; break; }
+                        if (!output.Line(line)) { cutComponent = comp; break; }
                     }
-                    if (!complete) break;
+                    if (output.Full) break;
                     shownSources++;
                 }
 
@@ -124,11 +131,17 @@ namespace MCPForUnity.Editor.Tools.Prefabs
                 {
                     if (shownSources < bySource.Count)
                     {
-                        var next = bySource[shownSources].node;
+                        var (next, nextLines) = bySource[shownSources];
+                        string where2 = ShowPath(next.Rel, top);
+                        var pending = nextLines.Select(l => l.comp).Distinct().ToList();
+                        if (cutComponent != null) pending = pending.Skip(pending.IndexOf(cutComponent)).ToList();
+                        int moreObjects = bySource.Count - shownSources - 1;
+                        string comps = pending.Count > 0 ? $" ({string.Join(", ", pending.Take(6))}{(pending.Count > 6 ? ", ..." : "")})" : "";
                         HNode topLevel = next;
                         while (topLevel.Parent != null && topLevel.Parent != snap) topLevel = topLevel.Parent;
-                        string rootHint = topLevel == snap ? "" : $"root=\"{topLevel.Rel}\" or ";
-                        note = $"... truncated: {bySource.Count - shownSources} more source objs (from {ShowPath(next.Rel, top)}) and {assets.Count} asset groups. Use {rootHint}a larger max_chars.";
+                        string rootHint = topLevel == snap ? "" : $" or root=\"{topLevel.Rel}\"";
+                        note = $"... truncated at {where2}{comps}; {moreObjects} more source objs and {assets.Count} asset groups not shown. " +
+                               $"Use component=\"{pending.FirstOrDefault() ?? "Name"}\"{rootHint}.";
                     }
                     else
                     {

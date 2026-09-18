@@ -41,7 +41,7 @@ async def inspect_prefab(
     mode: Annotated[Literal["tree", "node", "refs", "overrides", "usages", "problems"], "What to show."] = "tree",
     prefab_path: Annotated[str | None, "Assets/...prefab, a folder (problems), or scene:Path/To/Object."] = None,
     path: Annotated[str | None, "node: object path in the prefab."] = None,
-    component: Annotated[str | None, "node: component type."] = None,
+    component: Annotated[str | None, "node/refs: component type."] = None,
     root: Annotated[str | None, "tree/refs: only this subtree."] = None,
     depth: Annotated[int | None, "tree: depth, default 2."] = None,
     filter: Annotated[str | None, "tree: name or component substring."] = None,
