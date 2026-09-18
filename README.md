@@ -1,11 +1,9 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/logo-header-dark.png">
-    <img alt="MCP for Unity" src="docs/images/logo-header-light.png" width="400">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/unity-mcp-light-logo-dark.png">
+    <img alt="Unity MCP Light" src="docs/images/unity-mcp-light-logo.png" width="420">
   </picture>
 </p>
-
-<h1 align="center">Unity MCP Light</h1>
 
 <p align="center">
   A slimmed-down fork of <a href="https://github.com/CoplayDev/unity-mcp">MCP for Unity</a> that spends less of your AI's context window on tool definitions.
@@ -62,7 +60,7 @@ Other changes:
 
    The package keeps the upstream name (`com.coplaydev.unity-mcp`), so remove the upstream package first if you have it installed.
 
-2. **Point Unity at this fork's server.** By default the package downloads the *upstream* Python server from PyPI, which still includes every tool. Open **Window → MCP for Unity → Advanced** and set **Server Source** to:
+2. **Point Unity at this fork's server.** By default the package downloads the *upstream* Python server from PyPI, which still includes every tool. Open **Window → Unity MCP Light → Advanced** and set **Server Source** to:
 
    ```
    git+https://github.com/Talhasarac/unity-mcp-light@beta#subdirectory=Server

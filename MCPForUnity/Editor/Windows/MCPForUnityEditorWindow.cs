@@ -186,11 +186,11 @@ namespace MCPForUnity.Editor.Windows
                 rootVisualElement.styleSheets.Add(commonStyleSheet);
             }
 
-            // Embed the Ocean brand mark at the left of the header bar
+            // Embed the brand mark at the left of the header bar
             var headerLeft = rootVisualElement.Q<VisualElement>("header-left");
-            if (headerLeft != null && headerLeft.Q<OceanMark>() == null)
+            if (headerLeft != null && headerLeft.Q<BrandMark>() == null)
             {
-                var logo = new OceanMark { name = "header-logo" };
+                var logo = new BrandMark { name = "header-logo" };
                 logo.AddToClassList("header-logo");
                 headerLeft.Insert(0, logo);
             }

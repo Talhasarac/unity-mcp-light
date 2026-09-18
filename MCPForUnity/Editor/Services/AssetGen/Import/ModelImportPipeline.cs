@@ -56,7 +56,7 @@ namespace MCPForUnity.Editor.Services.AssetGen.Import
             if (isGltf && !IsGltfastAvailable())
             {
                 return Fail(job,
-                    "GLB import requires glTFast. Install it from the MCP for Unity → Dependencies tab, or choose FBX output.");
+                    "GLB import requires glTFast. Install it from the Unity MCP Light → Dependencies tab, or choose FBX output.");
             }
 
             AssetDatabase.ImportAsset(rel, ImportAssetOptions.ForceUpdate);
@@ -105,7 +105,7 @@ namespace MCPForUnity.Editor.Services.AssetGen.Import
             if (isGltf && !IsGltfastAvailable())
             {
                 return Fail(job,
-                    "This model is glTF (.glb/.gltf), which requires glTFast. Install it from the MCP for Unity → Dependencies tab.");
+                    "This model is glTF (.glb/.gltf), which requires glTFast. Install it from the Unity MCP Light → Dependencies tab.");
             }
 
             AssetDatabase.ImportAsset(modelRel, ImportAssetOptions.ForceUpdate);

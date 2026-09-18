@@ -75,11 +75,11 @@ namespace MCPForUnity.Editor.Windows
 
             visualTree.CloneTree(rootVisualElement);
 
-            // Embed the Ocean brand mark beside the title
+            // Embed the brand mark beside the title
             var setupHeader = rootVisualElement.Q<VisualElement>("setup-header");
-            if (setupHeader != null && setupHeader.Q<OceanMark>() == null)
+            if (setupHeader != null && setupHeader.Q<BrandMark>() == null)
             {
-                var logo = new OceanMark { name = "setup-logo" };
+                var logo = new BrandMark { name = "setup-logo" };
                 logo.AddToClassList("setup-logo");
                 setupHeader.Insert(0, logo);
             }
@@ -179,7 +179,7 @@ namespace MCPForUnity.Editor.Windows
             }
             if (clientToggles.Count == 0)
             {
-                clientsList.Add(new Label("No supported MCP clients detected on this machine. You can configure clients later from Tools → MCP for Unity."));
+                clientsList.Add(new Label("No supported MCP clients detected on this machine. You can configure clients later from Window → Unity MCP Light."));
                 configureSelectedButton.SetEnabled(false);
             }
         }
@@ -352,13 +352,13 @@ namespace MCPForUnity.Editor.Windows
             // Update overall status
             if (_dependencyResult.IsSystemReady)
             {
-                statusMessage.text = "✓ All requirements met! MCP for Unity is ready to use.";
+                statusMessage.text = "✓ All requirements met! Unity MCP Light is ready to use.";
                 statusMessage.style.color = new StyleColor(Color.green);
                 installationSection.style.display = DisplayStyle.None;
             }
             else
             {
-                statusMessage.text = "⚠ Missing dependencies. MCP for Unity requires all dependencies to function.";
+                statusMessage.text = "⚠ Missing dependencies. Unity MCP Light requires all dependencies to function.";
                 statusMessage.style.color = new StyleColor(new Color(1f, 0.6f, 0f)); // Orange
                 installationSection.style.display = DisplayStyle.Flex;
                 installationInstructions.text = DependencyManager.GetInstallationRecommendations();

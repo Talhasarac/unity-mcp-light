@@ -24,7 +24,7 @@ namespace MCPForUnity.Editor.Clients.Configurators
             linuxConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".qwen", "settings.json"),
             SupportsHttpTransport = true,
             // Default to stdio transport for Qwen Code (like Cursor)
-            // User can switch to HTTP in Unity: Window > MCP for Unity > Settings
+            // User can switch to HTTP in Unity: Window > Unity MCP Light > Settings
         })
         { }
 
