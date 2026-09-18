@@ -74,6 +74,8 @@ namespace MCPForUnity.Editor.Tools.Prefabs
             return output.Finish(header, output.Full ? $"... truncated: {withProblems - shown} more prefabs with problems. Inspect one prefab at a time, or use a larger max_chars." : null);
         }
 
+        private const int MaxUnsetListed = 15;
+
         private sealed class ProblemReport
         {
             public int Objects;
@@ -119,7 +121,9 @@ namespace MCPForUnity.Editor.Tools.Prefabs
                 foreach (string s in Materials) yield return s;
                 if (!includeUnset || Unset.Count == 0) yield break;
                 yield return "never assigned (null) script refs, may be intentional:";
-                foreach (string s in Unset) yield return "  " + s;
+                foreach (string s in Unset.Take(MaxUnsetListed)) yield return "  " + s;
+                if (Unset.Count > MaxUnsetListed)
+                    yield return $"  ... +{Unset.Count - MaxUnsetListed} more; use inspect_prefab node on an object to see its unset fields";
             }
         }
 
