@@ -21,6 +21,40 @@ __all__ = [
 ]
 
 
+def compact_schema(schema):
+    """Strip the null padding Pydantic adds for ``Optional[...] = None`` params.
+
+    ``Optional[str] = None`` becomes ``{"anyOf": [{"type": "string"}, {"type": "null"}],
+    "default": null}``. The param is already absent from ``required``, so the null
+    branch and null default only cost context. This reduces it to ``{"type": "string"}``.
+    """
+    if isinstance(schema, list):
+        return [compact_schema(item) for item in schema]
+    if not isinstance(schema, dict):
+        return schema
+
+    schema = {key: compact_schema(value) for key, value in schema.items()}
+
+    any_of = schema.get("anyOf")
+    if isinstance(any_of, list) and {"type": "null"} in any_of:
+        rest = [branch for branch in any_of if branch != {"type": "null"}]
+        del schema["anyOf"]
+        if len(rest) == 1 and isinstance(rest[0], dict):
+            # Keys already on the property (description, title) win over the branch's.
+            schema = {**rest[0], **schema}
+        elif rest:
+            schema["anyOf"] = rest
+
+    if isinstance(schema.get("type"), list) and "null" in schema["type"]:
+        types = [t for t in schema["type"] if t != "null"]
+        schema["type"] = types[0] if len(types) == 1 else types
+
+    if "default" in schema and schema["default"] is None:
+        del schema["default"]
+
+    return schema
+
+
 def register_all_tools(mcp: FastMCP, *, project_scoped_tools: bool = True):
     """
     Auto-discover and register all tools in the tools/ directory.
@@ -32,6 +66,8 @@ def register_all_tools(mcp: FastMCP, *, project_scoped_tools: bool = True):
     so that new sessions only see the *core* tools (plus always-visible meta-tools).
     Clients can activate additional groups at any time via ``manage_tools``.
     """
+    from fastmcp.tools import FunctionTool
+
     logger.info("Auto-discovering MCP for Unity Server tools...")
     # Dynamic import of all modules in this directory
     tools_dir = Path(__file__).parent
@@ -56,13 +92,17 @@ def register_all_tools(mcp: FastMCP, *, project_scoped_tools: bool = True):
                 "Skipping execute_custom_tool registration (project-scoped tools disabled)")
             continue
 
-        # Apply decorators: logging -> telemetry -> mcp.tool
+        # Apply decorators: logging -> telemetry -> register
         # Note: Parameter normalization (camelCase -> snake_case) is handled by
         # ParamNormalizerMiddleware before FastMCP validation
         wrapped = log_execution(tool_name, "Tool")(func)
         wrapped = telemetry_tool(tool_name)(wrapped)
-        wrapped = mcp.tool(
-            name=tool_name, description=description, **kwargs)(wrapped)
+        tool = FunctionTool.from_function(
+            wrapped, name=tool_name, description=description, **kwargs)
+        # Only the advertised schema is compacted; arguments are still validated
+        # against the function signature, so an explicit null is still accepted.
+        tool.parameters = compact_schema(tool.parameters)
+        mcp.add_tool(tool)
         tool_info['func'] = wrapped
         logger.debug(f"Registered tool: {tool_name} - {description}")
 

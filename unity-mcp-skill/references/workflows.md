@@ -13,7 +13,6 @@ Common workflows and patterns for effective Unity-MCP usage.
 - [UI Creation Workflows](#ui-creation-workflows)
 - [Camera & Cinemachine Workflows](#camera--cinemachine-workflows)
 - [Graphics & Rendering Workflows](#graphics--rendering-workflows)
-- [Package Management Workflows](#package-management-workflows)
 - [Package Deployment Workflows](#package-deployment-workflows)
 - [API Verification Workflows](#api-verification-workflows)
 - [Batch Operations](#batch-operations)
@@ -1685,73 +1684,6 @@ manage_graphics(action="stats_get")
 
 ---
 
-## Package Management Workflows
-
-### Install a Package and Verify
-
-```python
-# 1. Check what's installed
-manage_packages(action="ping")
-manage_packages(action="list_packages")
-# Poll status until complete
-manage_packages(action="status", job_id="<job_id>")
-
-# 2. Install the package
-manage_packages(action="add_package", package="com.unity.inputsystem")
-# Poll until domain reload completes
-manage_packages(action="status", job_id="<job_id>")
-
-# 3. Verify no compilation errors
-read_console(types=["error"], count=10)
-
-# 4. Confirm it's installed
-manage_packages(action="get_package_info", package="com.unity.inputsystem")
-```
-
-### Add OpenUPM Registry and Install Package
-
-```python
-# 1. Add the OpenUPM scoped registry
-manage_packages(
-    action="add_registry",
-    name="OpenUPM",
-    url="https://package.openupm.com",
-    scopes=["com.cysharp"]
-)
-
-# 2. Force resolution to pick up the new registry
-manage_packages(action="resolve_packages")
-
-# 3. Install a package from OpenUPM
-manage_packages(action="add_package", package="com.cysharp.unitask")
-manage_packages(action="status", job_id="<job_id>")
-```
-
-### Safe Package Removal
-
-```python
-# 1. Check dependencies before removing
-manage_packages(action="remove_package", package="com.unity.modules.ui")
-# If blocked: "Cannot remove: 3 package(s) depend on it"
-
-# 2. Force removal if you're sure
-manage_packages(action="remove_package", package="com.unity.modules.ui", force=True)
-manage_packages(action="status", job_id="<job_id>")
-```
-
-### Install from Git URL (e.g., NuGetForUnity)
-
-```python
-# Git URLs trigger a security warning — ensure the source is trusted
-manage_packages(
-    action="add_package",
-    package="https://github.com/GlitchEnzo/NuGetForUnity.git?path=/src/NuGetForUnity"
-)
-manage_packages(action="status", job_id="<job_id>")
-```
-
----
-
 ## Package Deployment Workflows
 
 ### Iterative Development Loop (Edit → Deploy → Test)
@@ -1795,9 +1727,9 @@ refresh_unity(mode="force", compile="request", wait_for_ready=True)
 
 ### Full API Verification Before Writing Code
 
-Use `unity_reflect` and `unity_docs` to verify Unity APIs before writing C# code. This prevents hallucinated or outdated API references.
+Use `unity_reflect` to verify Unity APIs before writing C# code. This prevents hallucinated or outdated API references.
 
-**Trust hierarchy:** reflection (live runtime) > project assets > official docs.
+**Trust hierarchy:** reflection (live runtime) > project assets.
 
 ```python
 # Step 1: Search for the type you need
@@ -1812,52 +1744,11 @@ unity_reflect(action="get_type", class_name="UnityEngine.AI.NavMeshAgent")
 unity_reflect(action="get_member", class_name="NavMeshAgent", member_name="SetDestination")
 # → Returns parameter types, return type, all overloads
 
-# Step 4: Get official docs for usage patterns and examples
-unity_docs(action="get_doc", class_name="NavMeshAgent", member_name="SetDestination")
-# → Returns description, signatures, parameters, code examples
-```
-
-### Batch API Lookup
-
-Use `unity_docs` `lookup` action to search multiple APIs in a single call:
-
-```python
-# Search ScriptReference + Manual in parallel (+ package docs if package/pkg_version provided)
-unity_docs(action="lookup", queries="Physics.Raycast,NavMeshAgent,Light2D")
-
-# Include package docs in the search
-unity_docs(action="lookup", query="VolumeProfile",
-           package="com.unity.render-pipelines.universal", pkg_version="17.0")
-```
-
-### Finding Shaders and Materials in Project
-
-The `lookup` action automatically searches project assets for asset-related queries:
-
-```python
-# This searches both docs AND project assets for shader-related content
-unity_docs(action="lookup", query="Lit shader")
-# → Returns doc hits + matching project assets (shaders, materials, etc.)
-```
-
-### Manual and Package Documentation
-
-```python
-# Fetch Unity Manual pages (execution order, scripting concepts, etc.)
-unity_docs(action="get_manual", slug="execution-order")
-
-# Fetch package-specific documentation
-unity_docs(action="get_package_doc",
-           package="com.unity.render-pipelines.universal",
-           page="2d-index", pkg_version="17.0")
 ```
 
 ### Verifying APIs Across Unity Versions
 
 ```python
-# Specify Unity version for version-specific docs
-unity_docs(action="get_doc", class_name="Camera", member_name="main", version="6000.0.38f1")
-
 # Use reflection to check what's actually available in the running editor
 unity_reflect(action="search", query="InputAction", scope="packages")
 ```

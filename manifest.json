@@ -74,10 +74,6 @@
       "description": "Get status of async test job"
     },
     {
-      "name": "manage_animation",
-      "description": "Manage Unity animation: Animator control, AnimatorController CRUD, and AnimationClip operations"
-    },
-    {
       "name": "manage_asset",
       "description": "Create, modify, search, and organize Unity assets"
     },
@@ -108,10 +104,6 @@
     {
       "name": "manage_material",
       "description": "Create and modify Unity materials and shaders"
-    },
-    {
-      "name": "manage_packages",
-      "description": "Modify Unity packages: install, remove, embed, and configure registries"
     },
     {
       "name": "manage_physics",
@@ -160,10 +152,6 @@
     {
       "name": "set_active_instance",
       "description": "Set the active Unity Editor instance for multi-instance workflows"
-    },
-    {
-      "name": "unity_docs",
-      "description": "Fetch Unity documentation (ScriptReference, Manual, package docs)"
     },
     {
       "name": "unity_reflect",

@@ -17,14 +17,14 @@
 
 Every MCP tool a server exposes has a name, a description and a parameter schema, and many clients send all of them to the model before you type a word. The upstream MCP for Unity ships 48 tools, about **29k tokens** of definitions. That context is paid on every conversation, whether or not you ever touch ProBuilder or the Profiler.
 
-This fork removes tools that most Unity workflows don't need:
+This fork removes tools that most Unity workflows don't need and trims the definitions of the ones that remain:
 
 | | Upstream | Light |
 |---|---|---|
-| Tools | 48 | **38** |
-| Tool definitions (approx. tokens) | ~28.9k | **~23.6k** |
+| Tools | 48 | **35** |
+| Tool definitions (approx. tokens) | ~28.9k | **~18.5k** |
 
-Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, camera, graphics, physics, packages, builds, tests, UI Toolkit, animation, docs lookup — works the same as upstream.
+Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, camera, graphics, physics, builds, tests, UI Toolkit, API reflection — works the same as upstream.
 
 ## What was removed
 
@@ -36,6 +36,9 @@ Everything else — scenes, GameObjects, components, scripts, assets, prefabs, m
 | `manage_shader` | Shader file create/read/update/delete |
 | `manage_texture` | Procedural texture generation |
 | `manage_vfx` | VFX Graph, particles, line and trail renderers |
+| `manage_animation` | Animator control and AnimationClip creation |
+| `manage_packages` | Package Manager install/remove/search |
+| `unity_docs` | Fetching docs from docs.unity3d.com |
 | `debug_request_context` | Server debugging helper |
 | `manage_script_capabilities` | Listed the supported script-edit operations |
 
@@ -44,6 +47,7 @@ Everything else — scenes, GameObjects, components, scripts, assets, prefabs, m
 Each removed tool is gone from the Python server, the Unity handlers, the CLI, the tests and the bundled `unity-mcp-skill` docs, so nothing still describes a tool that no longer exists.
 
 Other changes:
+- **Smaller schemas.** Optional parameters no longer carry Pydantic's null padding. `Optional[str] = None` used to be advertised as `{"anyOf": [{"type": "string"}, {"type": "null"}], "default": null}` and is now just `{"type": "string"}`. That alone saves about 3.5k tokens. Explicit `null` arguments are still accepted.
 - `get_test_job` now recommends a `wait_timeout` of 15–30 seconds instead of 30–60.
 
 ## Install
@@ -72,7 +76,7 @@ Other changes:
 
 ## Keeping context small
 
-- **Tool groups.** Tools are grouped (`core`, `animation`, `ui`, `testing`, `docs`, `scripting_ext`, `asset_gen`). Only `core` is on by default over HTTP; turn the others on when you need them with `manage_tools`, or on the **Tools** tab in Unity.
+- **Tool groups.** Tools are grouped (`core`, `ui`, `testing`, `docs`, `scripting_ext`, `asset_gen`). Only `core` is on by default over HTTP; turn the others on when you need them with `manage_tools`, or on the **Tools** tab in Unity.
 - **Clients with tool search** (such as Claude Code) load tool definitions only when needed, so the savings here matter most for clients that load every definition up front.
 - **The skill.** `unity-mcp-skill/` gives agents usage guidance. It is large; install it only if your agent benefits from it.
 

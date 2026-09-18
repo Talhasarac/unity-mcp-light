@@ -259,7 +259,6 @@ def register_commands():
         ("cli.commands.prefab", "prefab"),
         ("cli.commands.material", "material"),
         ("cli.commands.lighting", "lighting"),
-        ("cli.commands.animation", "animation"),
         ("cli.commands.audio", "audio"),
         ("cli.commands.ui", "ui"),
         ("cli.commands.instance", "instance"),
@@ -267,9 +266,7 @@ def register_commands():
         ("cli.commands.build", "build"),
         ("cli.commands.camera", "camera"),
         ("cli.commands.graphics", "graphics"),
-        ("cli.commands.packages", "packages"),
         ("cli.commands.reflect", "reflect"),
-        ("cli.commands.docs", "docs"),
         ("cli.commands.physics", "physics"),
     ]
 
