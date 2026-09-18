@@ -11,7 +11,7 @@ Complete reference for all MCP tools. Each tool includes parameters, types, and 
 - [GameObject Tools](#gameobject-tools)
 - [Script Tools](#script-tools)
 - [Asset Tools](#asset-tools)
-- [Material & Shader Tools](#material--shader-tools)
+- [Material Tools](#material-tools)
 - [UI Tools](#ui-tools)
 - [Editor Control Tools](#editor-control-tools)
 - [Testing Tools](#testing-tools)
@@ -549,7 +549,7 @@ manage_prefabs(
 
 ---
 
-## Material & Shader Tools
+## Material Tools
 
 ### manage_material
 
