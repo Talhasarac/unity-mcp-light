@@ -134,6 +134,14 @@
       "description": "Create and modify ScriptableObjects"
     },
     {
+      "name": "manage_shader",
+      "description": "Work with Unity shaders"
+    },
+    {
+      "name": "manage_texture",
+      "description": "Create and modify textures with patterns, gradients, and noise"
+    },
+    {
       "name": "manage_tools",
       "description": "Manage which tool groups are visible in this session"
     },

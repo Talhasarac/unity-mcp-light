@@ -351,6 +351,37 @@ manage_material(
 manage_camera(action="screenshot")
 ```
 
+### Create Procedural Texture
+
+```python
+# 1. Create base texture
+manage_texture(
+    action="create",
+    path="Assets/Textures/Checkerboard.png",
+    width=256,
+    height=256,
+    fill_color=[255, 255, 255, 255]
+)
+
+# 2. Apply checkerboard pattern
+manage_texture(
+    action="apply_pattern",
+    path="Assets/Textures/Checkerboard.png",
+    pattern="checkerboard",
+    palette=[[0, 0, 0, 255], [255, 255, 255, 255]],
+    pattern_size=32
+)
+
+# 3. Create material with texture
+manage_material(
+    action="create",
+    material_path="Assets/Materials/CheckerMaterial.mat",
+    shader="Standard"
+)
+
+# 4. Assign texture to material (via manage_material set_material_shader_property)
+```
+
 ### Organize Assets into Folders
 
 ```python

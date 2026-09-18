@@ -442,6 +442,7 @@ def render_resources_catalog(resources: list[dict[str, Any]]) -> str:
 GROUP_BLURBS_FALLBACK = {
     "core": "Essential scene, script, asset, and editor tools — always on by default.",
     "docs": "Unity API reflection.",
+    "vfx": "Shaders and procedural textures.",
     "ui": "UI Toolkit — UXML, USS, UIDocument.",
     "scripting_ext": "ScriptableObject management.",
     "testing": "Test runner and async test jobs.",

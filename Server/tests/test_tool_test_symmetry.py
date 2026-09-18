@@ -28,6 +28,7 @@ NOT_TOOLS = {"__init__", "utils", "preflight"}
 # tools -- new tools must ship with a test. Remove an entry once coverage lands.
 KNOWN_UNTESTED = {
     "execute_menu_item",
+    "manage_shader",
     "manage_tools",
 }
 

@@ -726,6 +726,35 @@ unity-mcp graphics skybox-set-reflection --intensity 1.0 --bounces 2 --mode Cust
 unity-mcp graphics skybox-set-sun --target "DirectionalLight"
 ```
 
+### Texture Commands
+
+```bash
+# Create procedural textures
+unity-mcp texture create "Assets/Textures/Red.png" --width 128 --height 128 --color "1,0,0,1"
+unity-mcp texture create "Assets/Textures/Check.png" --pattern checkerboard --palette "1,0,0,1;0,0,1,1"
+unity-mcp texture create "Assets/Textures/Brick.png" --width 256 --height 256 --pattern brick
+unity-mcp texture create "Assets/Textures/Grid.png" --pattern grid --width 512 --height 512
+
+# Available patterns: checkerboard, stripes, stripes_h, stripes_v, stripes_diag, dots, grid, brick
+
+# Create from image file
+unity-mcp texture create "Assets/Textures/Photo.png" --image-path "/path/to/source.png"
+
+# Create with custom import settings
+unity-mcp texture create "Assets/Textures/Normal.png" --import-settings '{"textureType": "NormalMap", "filterMode": "Trilinear"}'
+
+# Create sprites (auto-configures import settings for 2D)
+unity-mcp texture sprite "Assets/Sprites/Player.png" --width 32 --height 32 --color "0,0.5,1,1"
+unity-mcp texture sprite "Assets/Sprites/Tile.png" --pattern checkerboard --ppu 16 --pivot "0.5,0"
+
+# Modify existing texture pixels
+unity-mcp texture modify "Assets/Textures/Existing.png" --set-pixels '{"x":0,"y":0,"width":16,"height":16,"color":[1,0,0,1]}'
+
+# Delete texture
+unity-mcp texture delete "Assets/Textures/Old.png"
+unity-mcp texture delete "Assets/Textures/Old.png" --force
+```
+
 ### Code Commands
 
 ```bash

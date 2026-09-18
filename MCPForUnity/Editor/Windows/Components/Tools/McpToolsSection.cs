@@ -39,6 +39,7 @@ namespace MCPForUnity.Editor.Windows.Components.Tools
         private static readonly Dictionary<string, string> GroupDisplayNames = new(StringComparer.OrdinalIgnoreCase)
         {
             { "core", "Core Tools" },
+            { "vfx", "Shaders & Textures" },
             { "ui", "UI Toolkit" },
             { "scripting_ext", "Scripting Extensions" },
             { "testing", "Testing" },

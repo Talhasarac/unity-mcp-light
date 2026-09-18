@@ -21,10 +21,10 @@ This fork removes tools that most Unity workflows don't need and trims the defin
 
 | | Upstream | Light |
 |---|---|---|
-| Tools | 48 | **35** |
-| Tool definitions (approx. tokens) | ~28.9k | **~18.5k** |
+| Tools | 48 | **37** |
+| Tool definitions (approx. tokens) | ~28.9k | **~19.2k** |
 
-Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, camera, graphics, physics, builds, tests, UI Toolkit, API reflection — works the same as upstream.
+Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, shaders, procedural textures, camera, graphics, physics, builds, tests, UI Toolkit, API reflection — works the same as upstream.
 
 ## What was removed
 
@@ -33,8 +33,6 @@ Everything else — scenes, GameObjects, components, scripts, assets, prefabs, m
 | `generate_image`, `generate_model`, `generate_audio` | AI asset generation through third-party providers |
 | `manage_probuilder` | ProBuilder mesh modeling |
 | `manage_profiler` | Profiler sessions, counters, memory snapshots, Frame Debugger |
-| `manage_shader` | Shader file create/read/update/delete |
-| `manage_texture` | Procedural texture generation |
 | `manage_vfx` | VFX Graph, particles, line and trail renderers |
 | `manage_animation` | Animator control and AnimationClip creation |
 | `manage_packages` | Package Manager install/remove/search |
@@ -77,7 +75,7 @@ Other changes:
 
 ## Keeping context small
 
-- **Tool groups.** Tools are grouped (`core`, `ui`, `testing`, `docs`, `scripting_ext`, `asset_gen`). Only `core` is on by default over HTTP; turn the others on when you need them with `manage_tools`, or on the **Tools** tab in Unity.
+- **Tool groups.** Tools are grouped (`core`, `vfx`, `ui`, `testing`, `docs`, `scripting_ext`, `asset_gen`). Only `core` is on by default over HTTP; turn the others on when you need them with `manage_tools`, or on the **Tools** tab in Unity. The `vfx` group now holds only `manage_shader` and `manage_texture`.
 - **Clients with tool search** (such as Claude Code) load tool definitions only when needed, so the savings here matter most for clients that load every definition up front.
 - **The skill.** `unity-mcp-skill/` gives agents usage guidance. It is large; install it only if your agent benefits from it.
 

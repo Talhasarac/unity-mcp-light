@@ -11,7 +11,7 @@ Complete reference for all MCP tools. Each tool includes parameters, types, and 
 - [GameObject Tools](#gameobject-tools)
 - [Script Tools](#script-tools)
 - [Asset Tools](#asset-tools)
-- [Material Tools](#material-tools)
+- [Material & Shader Tools](#material--shader-tools)
 - [UI Tools](#ui-tools)
 - [Editor Control Tools](#editor-control-tools)
 - [Testing Tools](#testing-tools)
@@ -548,7 +548,7 @@ manage_prefabs(
 
 ---
 
-## Material Tools
+## Material & Shader Tools
 
 ### manage_material
 
@@ -599,6 +599,38 @@ manage_material(
     # Other modes: "property_block" (default, not persistent),
     #              "shared" (mutates shared material — avoid for primitives),
     #              "instance" (runtime only, not persistent)
+)
+```
+
+### manage_texture
+
+Create procedural textures.
+
+```python
+manage_texture(
+    action="create",
+    path="Assets/Textures/Checker.png",
+    width=64,
+    height=64,
+    fill_color=[255, 255, 255, 255]  # or [1.0, 1.0, 1.0, 1.0]
+)
+
+# Apply pattern
+manage_texture(
+    action="apply_pattern",
+    path="Assets/Textures/Checker.png",
+    pattern="checkerboard",      # "checkerboard"|"stripes"|"dots"|"grid"|"brick"
+    palette=[[0,0,0,255], [255,255,255,255]],
+    pattern_size=8
+)
+
+# Apply gradient
+manage_texture(
+    action="apply_gradient",
+    path="Assets/Textures/Gradient.png",
+    gradient_type="linear",      # "linear"|"radial"
+    gradient_angle=45,
+    palette=[[255,0,0,255], [0,0,255,255]]
 )
 ```
 

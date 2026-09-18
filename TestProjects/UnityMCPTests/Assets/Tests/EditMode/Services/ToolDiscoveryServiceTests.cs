@@ -131,6 +131,7 @@ namespace MCPForUnity.Editor.Tests.EditMode.Services
                 "manage_gameobject",
                 "manage_scene",
                 "manage_script",
+                "manage_shader",
                 "read_console",
                 "execute_menu_item",
                 "manage_prefabs"
