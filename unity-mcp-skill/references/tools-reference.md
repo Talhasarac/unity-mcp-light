@@ -503,7 +503,7 @@ Headless prefab operations.
 # Get prefab info
 manage_prefabs(action="get_info", prefab_path="Assets/Prefabs/Player.prefab")
 
-# Get prefab hierarchy
+# Get prefab hierarchy (full JSON, large on big prefabs; prefer inspect_prefab below)
 manage_prefabs(action="get_hierarchy", prefab_path="Assets/Prefabs/Player.prefab")
 
 # Create prefab from scene GameObject
@@ -545,6 +545,52 @@ manage_prefabs(
     component_properties={"Rigidbody": {"mass": 5.0}, "MyScript": {"health": 100}}
 )
 ```
+
+---
+
+### inspect_prefab
+
+Read-only prefab inspection in compact plain text (not JSON). Nothing is opened in a Prefab Stage, marked dirty or saved. Objects are named by hierarchy path relative to the prefab root (`""` or the root's name is the root; duplicate sibling names get `#2`, `#3`).
+
+| Parameter | Modes | Description |
+|-----------|-------|-------------|
+| `mode` | all | `tree` (default), `node`, `refs`, `overrides`, `usages`, `problems` |
+| `prefab_path` | all but usages | `Assets/...prefab`, a folder (problems), or `scene:Path/To/Object` |
+| `depth` | tree | Levels to expand, default 2 (unlimited when `filter` is set) |
+| `root` | tree, refs | Only this subtree |
+| `filter` | tree | Name, component or nested-prefab substring; matches are shown with their ancestors |
+| `path`, `component` | node | Object path and component type (`Door`, `Door#2`, or a full name) |
+| `all_fields` | node | Include fields that still have their default value |
+| `script` / `asset` | usages | Class name, or an asset path |
+| `max_chars` | all | Output budget, default 6000; truncated output ends with a hint |
+
+```python
+inspect_prefab(prefab_path="Assets/Cars/E36_CAR.prefab")
+# E36_CAR.prefab  410 objs  depth<=2  (shown 24)
+# E36_CAR [Rigidbody, VehicleController, UserCar, BoxCollider, +12]
+#   Araciciisigi @Araciciisigi.prefab [Light, HDAdditionalLightData, HalogenLightTween]
+#   Body [MeshRenderer] ...4 below
+#   Wheels
+#     Wheel_FL..RR x4 [WheelCollider]
+#   Parts (-) ...118 below [@Seat.prefab x2]
+
+inspect_prefab(mode="node", prefab_path="Assets/Cars/E36_CAR.prefab", component="UserCar")
+# E36_CAR.prefab:E36_CAR children=12
+#   UserCar
+#     value: 12000
+#     carDataSheet -> Assets/Data/E36.asset
+#     eventGETIN: 2 listeners
+#       -> Interior/Cam (Camera).set_enabled(bool true)
+#       -> E36_CAR (Lights).DashOn()
+
+inspect_prefab(mode="refs", prefab_path="Assets/Cars/E36_CAR.prefab", root="Body")
+inspect_prefab(mode="overrides", prefab_path="Assets/Cars/E36_Blue.prefab")   # variant: base chain, old -> new
+inspect_prefab(mode="usages", script="VehicleController")                     # direct users with object paths, "via @X.prefab"
+inspect_prefab(mode="usages", asset="Assets/Materials/Paint.mat")
+inspect_prefab(mode="problems", prefab_path="Assets/Cars")                    # whole folder
+```
+
+Markers: `(-)` inactive, `@X.prefab` nested prefab root, `@MISSING-PREFAB` broken nested link, `!missing` missing script, `xN` identical siblings shown once, `...N below` collapsed children. References print as `-> Path (Component)` inside the prefab, `-> Assets/...` for assets, `-> null` when never assigned and `-> MISSING` when the target was deleted.
 
 ---
 

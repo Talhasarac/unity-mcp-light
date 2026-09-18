@@ -78,6 +78,10 @@
       "description": "Import a local 3D model file (.fbx/.obj/.glb/.gltf/.zip) into the project"
     },
     {
+      "name": "inspect_prefab",
+      "description": "Read-only prefab inspection in compact text: tree, fields, references, overrides, usages, problems"
+    },
+    {
       "name": "manage_asset",
       "description": "Create, modify, search, and organize Unity assets"
     },

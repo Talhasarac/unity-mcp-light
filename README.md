@@ -19,15 +19,30 @@ This fork removes tools that most Unity workflows don't need and trims the defin
 
 | | Upstream | Light |
 |---|---|---|
-| Tools | 48 | **36** |
-| Tool definitions (approx. tokens) | ~28.9k | **~18.8k** |
-| Skill: `SKILL.md`, loaded when the skill triggers (approx. tokens) | ~3.6k | **~3.3k** |
-| Skill: reference docs, read on demand (approx. tokens) | ~41.2k (4 files) | **~31.8k** (3 files) |
-| Skill total (approx. tokens) | ~44.8k | **~35.1k** |
+| Tools | 48 | **37** |
+| Tool definitions (approx. tokens) | ~28.9k | **~19.2k** |
+| Skill: `SKILL.md`, loaded when the skill triggers (approx. tokens) | ~3.6k | **~3.8k** |
+| Skill: reference docs, read on demand (approx. tokens) | ~41.2k (4 files) | **~32.5k** (3 files) |
+| Skill total (approx. tokens) | ~44.8k | **~36.3k** |
 
-The skill drops the ProBuilder guide and every section about removed tools. Token counts are characters ÷ 4.
+The skill drops the ProBuilder guide and every section about removed tools, and adds a short guide to `inspect_prefab`. Token counts are characters ÷ 4.
 
 Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, shaders, procedural textures, camera, graphics, physics, builds, tests, UI Toolkit, API reflection — works the same as upstream.
+
+## What was added
+
+**`inspect_prefab`**: a read-only prefab inspector (about 460 tokens of definition) that answers in compact, indented text under a character budget instead of JSON. It never opens a Prefab Stage, marks anything dirty or saves.
+
+| Mode | Answers |
+|---|---|
+| `tree` | What is in this prefab? Hierarchy to `depth` 2 with short component names; identical siblings collapse (`Wheel_FL..RR x4`); nested prefabs, inactive objects and missing scripts are marked. `root=` and `filter=` narrow it. |
+| `node` | What are this object's settings? Only fields that differ from a freshly added component, with references resolved to paths and UnityEvent listeners spelled out. |
+| `refs` | What is wired to what? Every object reference and persistent listener, by object; asset links from built-in components grouped by asset. |
+| `overrides` | What does this variant or nested prefab change? Base chain, `old -> new` values, added and removed components and objects. |
+| `usages` | Which prefabs and scenes use script X or asset Y, including through nested prefabs? |
+| `problems` | Missing scripts, references to deleted objects, broken nested prefab links, broken listeners and material/submesh mismatches, for a prefab or a folder. |
+
+The normal path is `manage_prefabs get_info` → `inspect_prefab tree` → `node` or `refs`.
 
 ## What was removed
 

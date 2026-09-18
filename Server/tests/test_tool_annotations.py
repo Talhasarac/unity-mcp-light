@@ -34,6 +34,7 @@ READ_ONLY = {
     "find_in_file",
     "get_sha",
     "get_test_job",
+    "inspect_prefab",
     "unity_reflect",
     "validate_script",
 }

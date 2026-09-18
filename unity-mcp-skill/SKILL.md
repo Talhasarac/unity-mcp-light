@@ -139,6 +139,25 @@ read_console(
 # - blocking_reasons: Why tools might fail
 ```
 
+### 6. Read Prefabs with `inspect_prefab`, Not `get_hierarchy`
+
+`manage_prefabs get_hierarchy` returns full JSON for every object and can exceed the client's size limit on a large prefab. `inspect_prefab` is read-only, answers in compact text under a character budget (`max_chars`, default 6000), and names objects by hierarchy path.
+
+Normal path: `manage_prefabs get_info` (root components, child count) -> `inspect_prefab tree` -> `node` or `refs`.
+
+| Question | Call |
+|----------|------|
+| What is in this prefab? | `inspect_prefab(prefab_path=P)` (tree, depth 2) |
+| What is under one branch? | `inspect_prefab(prefab_path=P, root="Body", depth=3)` |
+| Where is every light / object named X? | `inspect_prefab(prefab_path=P, filter="Light")` |
+| What are this component's settings? | `inspect_prefab(mode="node", prefab_path=P, path="Body/Hood", component="Door")` |
+| What does this event call? What is wired to what? | `inspect_prefab(mode="refs", prefab_path=P)` |
+| What does this variant or nested prefab change? | `inspect_prefab(mode="overrides", prefab_path=P)` |
+| Which prefabs use script X or asset Y? | `inspect_prefab(mode="usages", script="VehicleController")` |
+| What is broken? | `inspect_prefab(mode="problems", prefab_path=P)` (a folder works too) |
+
+Output markers: `(-)` inactive, `@Seat.prefab` nested prefab root, `!missing` missing script, `x4` identical siblings shown once, `...118 below` collapsed children, `-> MISSING` a reference to a deleted object, `-> null` never assigned. When output ends with `... truncated:`, follow its hint (`root=`, `depth=`, `component=`). `node` hides default values; pass `all_fields=true` for everything. Scene objects work with `prefab_path="scene:Path/To/Object"`.
+
 ## Parameter Type Conventions
 
 These are common patterns, not strict guarantees. `manage_components.set_property` payload shapes can vary by component/property; if a template fails, inspect the component resource payload and adjust.
@@ -181,6 +200,7 @@ uri="file:///full/path/to/file.cs"
 | **Scene** | `manage_scene`, `find_gameobjects` | Scene operations, finding objects |
 | **Objects** | `manage_gameobject`, `manage_components` | Creating/modifying GameObjects |
 | **Scripts** | `create_script`, `script_apply_edits`, `validate_script` | C# code management (auto-refreshes on create/edit) |
+| **Prefab inspection** | `inspect_prefab` | Read-only prefab reading in compact text: `tree`, `node` (non-default fields), `refs` (references and UnityEvent listeners), `overrides`, `usages`, `problems`. Use instead of `manage_prefabs get_hierarchy`. See [tools-reference.md](references/tools-reference.md#inspect_prefab). |
 | **Assets** | `manage_asset`, `manage_prefabs` | Asset operations. **Prefab instantiation** is done via `manage_gameobject(action="create", prefab_path="...")`, not `manage_prefabs`. |
 | **Editor** | `manage_editor`, `execute_menu_item`, `read_console` | Editor control, package deployment (`deploy_package`/`restore_package` actions) |
 | **Testing** | `run_tests`, `get_test_job` | Unity Test Framework |

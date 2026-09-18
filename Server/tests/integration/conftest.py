@@ -101,6 +101,18 @@ sys.modules.setdefault("fastmcp.server", fastmcp_server)
 sys.modules.setdefault("fastmcp.server.middleware", fastmcp_server_middleware)
 sys.modules.setdefault("fastmcp.server.server", fastmcp_server_server)
 
+# Stub fastmcp.exceptions (tools that report failures by raising ToolError)
+fastmcp_exceptions = types.ModuleType("fastmcp.exceptions")
+
+
+class _ToolError(Exception):
+    pass
+
+
+fastmcp_exceptions.ToolError = _ToolError
+fastmcp.exceptions = fastmcp_exceptions
+sys.modules.setdefault("fastmcp.exceptions", fastmcp_exceptions)
+
 # Stub mcp.types for TextContent, ImageContent, ToolAnnotations
 _mcp_types = sys.modules.get("mcp.types")
 if _mcp_types is None:
