@@ -208,9 +208,6 @@ namespace MCPForUnityTests.Editor.AssetGen
             Assert.IsTrue(AssetGenJobManager.IsAllowedResultExtension("model", "glb"));
             Assert.IsTrue(AssetGenJobManager.IsAllowedResultExtension("model", "zip"));
             Assert.IsFalse(AssetGenJobManager.IsAllowedResultExtension("model", "cs"));
-            // marketplace shares the model allowlist.
-            Assert.IsTrue(AssetGenJobManager.IsAllowedResultExtension("marketplace", "zip"));
-            Assert.IsFalse(AssetGenJobManager.IsAllowedResultExtension("marketplace", "dll"));
 
             // Fail closed: an unexpected/unknown kind allows nothing at the RCE boundary.
             Assert.IsFalse(AssetGenJobManager.IsAllowedResultExtension("bogus_kind", "glb"));

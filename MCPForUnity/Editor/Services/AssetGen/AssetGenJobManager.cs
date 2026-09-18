@@ -23,7 +23,7 @@ namespace MCPForUnity.Editor.Services.AssetGen
     public sealed class AssetGenJob
     {
         public string JobId;
-        public string Kind;       // model | image | audio | marketplace
+        public string Kind;       // model | image | audio
         public string Provider;
         public string Action;
         public AssetGenJobState State;
@@ -168,30 +168,6 @@ namespace MCPForUnity.Editor.Services.AssetGen
                 Ext = "wav", // default; the poll's ResultExt (wav/mp3) overrides at write time
                 Name = NameFrom(req.Name, req.Prompt, job.JobId),
                 Subfolder = "Audio",
-            };
-            Register(job, runner);
-            return job;
-        }
-
-        public static AssetGenJob StartMarketplaceImport(string uid, float targetSize, string name, string outputFolder)
-        {
-            if (string.IsNullOrEmpty(uid)) throw new ArgumentException("uid required");
-            var adapter = AssetGenProviders.Marketplace("sketchfab"); // throws NotSupported if unimplemented
-            var job = NewJob("marketplace", "sketchfab", "import");
-            job.TargetSize = targetSize <= 0 ? 1f : targetSize;
-            if (!TryResolveKey("sketchfab", job, out string apiKey)) return job;
-            var transport = TransportOverrideForTests ?? new UnityWebRequestTransport();
-            var runner = new Runner
-            {
-                Job = job,
-                SubmitFn = ct => adapter.ResolveDownloadUrlAsync(uid, apiKey, transport, ct),   // returns the zip/gltf URL as providerJobId
-                PollFn = (pid, ct) => Task.FromResult(new ProviderPollResult { State = ProviderPollState.Succeeded, Progress = 1f, DownloadUrl = pid, ResultExt = "zip" }),
-                ImportFn = ImportOverrideForTests ?? ModelImportPipeline.ImportInto,
-                Transport = transport,
-                OutputFolder = outputFolder,
-                Ext = "zip",
-                Name = NameFrom(name, uid, job.JobId),
-                Subfolder = "Sketchfab",
             };
             Register(job, runner);
             return job;
@@ -458,7 +434,7 @@ namespace MCPForUnity.Editor.Services.AssetGen
 
         /// <summary>
         /// Whether <paramref name="ext"/> (no leading dot) is an allowed result extension for the
-        /// job <paramref name="kind"/> (audio | image | model | marketplace). Internal so the
+        /// job <paramref name="kind"/> (audio | image | model). Internal so the
         /// allowlist can be unit-tested directly.
         /// </summary>
         internal static bool IsAllowedResultExtension(string kind, string ext)
@@ -471,7 +447,6 @@ namespace MCPForUnity.Editor.Services.AssetGen
                 case "audio": return AudioAllowedExtensions;
                 case "image": return ImageAllowedExtensions;
                 case "model":
-                case "marketplace": return ModelAllowedExtensions;
                 default: return NoAllowedExtensions; // fail closed for unexpected kinds
             }
         }

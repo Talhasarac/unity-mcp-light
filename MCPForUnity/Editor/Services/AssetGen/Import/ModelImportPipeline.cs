@@ -16,7 +16,7 @@ namespace MCPForUnity.Editor.Services.AssetGen.Import
     /// </summary>
     public static class ModelImportPipeline
     {
-        // Inert asset types permitted out of an UNTRUSTED provider archive (Sketchfab et al.).
+        // Inert asset types permitted out of an UNTRUSTED archive (e.g. a user-supplied .zip).
         // Anything else — scripts, assemblies, asmdefs — is skipped on extraction so it can never
         // compile or load inside the Editor. See SafeZipExtractor for the enforcement.
         private static readonly HashSet<string> ArchiveAllowedExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -75,7 +75,7 @@ namespace MCPForUnity.Editor.Services.AssetGen.Import
         }
 
         /// <summary>
-        /// Unpack a downloaded archive (Sketchfab ships .zip) into a sibling folder named
+        /// Unpack a .zip archive into a sibling folder named
         /// after the archive, import it, then locate the first model file inside and import that.
         /// FBX/OBJ are preferred over glTF; a glTF-only archive still requires glTFast.
         /// </summary>

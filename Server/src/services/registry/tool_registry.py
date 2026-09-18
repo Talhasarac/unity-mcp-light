@@ -22,7 +22,7 @@ TOOL_GROUPS: dict[str, str] = {
     "ui": "UI Toolkit (UXML, USS, UIDocument)",
     "scripting_ext": "ScriptableObject management",
     "testing": "Test runner & async test jobs",
-    "asset_gen": "3D model import – Sketchfab marketplace & local model files",
+    "asset_gen": "Local 3D model file import (.fbx/.obj/.glb/.gltf/.zip)",
 }
 
 DEFAULT_ENABLED_GROUPS: set[str] = {"core"}

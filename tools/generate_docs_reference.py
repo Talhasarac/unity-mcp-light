@@ -446,7 +446,7 @@ GROUP_BLURBS_FALLBACK = {
     "ui": "UI Toolkit — UXML, USS, UIDocument.",
     "scripting_ext": "ScriptableObject management.",
     "testing": "Test runner and async test jobs.",
-    "asset_gen": "3D model import — Sketchfab marketplace and local model files.",
+    "asset_gen": "Local 3D model file import (.fbx/.obj/.glb/.gltf/.zip).",
 }
 
 

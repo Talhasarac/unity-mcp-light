@@ -35,13 +35,4 @@ namespace MCPForUnity.Editor.Services.AssetGen.Providers
         Task<string> SubmitAsync(AudioGenRequest req, string apiKey, IHttpTransport http, CancellationToken ct);
         Task<ProviderPollResult> PollAsync(string providerJobId, string apiKey, IHttpTransport http, CancellationToken ct);
     }
-
-    /// <summary>A 3D marketplace provider (Sketchfab, ...). Search/preview/resolve, not generative. Phase 6.</summary>
-    public interface IMarketplaceProviderAdapter
-    {
-        string Id { get; }
-        Task<string> SearchAsync(string query, string categories, bool downloadable, int? count, string cursor, string apiKey, IHttpTransport http, CancellationToken ct);
-        Task<string> PreviewAsync(string uid, string apiKey, IHttpTransport http, CancellationToken ct);
-        Task<string> ResolveDownloadUrlAsync(string uid, string apiKey, IHttpTransport http, CancellationToken ct);
-    }
 }

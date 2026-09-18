@@ -74,10 +74,6 @@
       "description": "Get status of async test job"
     },
     {
-      "name": "import_model",
-      "description": "Search and import 3D models from the Sketchfab marketplace"
-    },
-    {
       "name": "import_model_file",
       "description": "Import a local 3D model file (.fbx/.obj/.glb/.gltf/.zip) into the project"
     },

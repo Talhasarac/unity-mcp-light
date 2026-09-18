@@ -9,7 +9,7 @@ namespace MCPForUnity.Editor.Services.AssetGen.Import
     /// Extracts a .zip into a destination directory while rejecting Zip-Slip path traversal:
     /// every entry's resolved target must stay inside <c>destDir</c>. Directory entries are
     /// created; file entries are written by copying the entry stream (no reliance on the
-    /// ZipFileExtensions helper). Used to unpack marketplace model archives (e.g. Sketchfab).
+    /// ZipFileExtensions helper). Used to unpack .zip model archives passed to import_model_file.
     ///
     /// When <paramref name="allowedExtensions"/> is supplied, file entries whose extension is not
     /// on the allowlist are SKIPPED (not written). Callers that extract UNTRUSTED archives into the

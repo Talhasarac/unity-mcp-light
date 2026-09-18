@@ -21,14 +21,6 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
     /// </summary>
     public class McpAssetGenSection
     {
-        // Fixed provider list. Each Id is both the SecureKeyStore key and the
-        // AssetGenPrefs enable-flag id. Only the Sketchfab marketplace remains; the
-        // generation providers were removed along with the generate_* tools.
-        private static readonly (string Id, string Label)[] ModelProviders =
-        {
-            ("sketchfab", "Sketchfab"),
-        };
-
         // UI Elements
         private VisualElement providersContainer;
         private VisualElement gltfastNotice;
@@ -160,13 +152,6 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
 
             providersContainer.Clear();
             modelEnableToggles.Clear();
-
-            var modelPanel = AddCategoryPanel("3D Models");
-            foreach (var provider in ModelProviders)
-            {
-                var toggle = AddProviderRow(modelPanel, provider.Id, provider.Label, "model");
-                modelEnableToggles.Add((provider.Id, toggle));
-            }
 
             AddBlenderHandoffRow();
         }
@@ -357,8 +342,7 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
             bool has = HasKey(id);
             SetStatus(statusLabel, has ? "saved ✓" : "not set", has);
 
-            // "Which model" selector for this provider (skipped for providers with no catalog
-            // models, e.g. the Sketchfab marketplace).
+            // "Which model" selector for this provider (skipped for providers with no catalog models).
             AddModelDropdown(row, kind, id);
 
             parent.Add(row);

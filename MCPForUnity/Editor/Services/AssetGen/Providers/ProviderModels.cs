@@ -84,7 +84,7 @@ namespace MCPForUnity.Editor.Services.AssetGen.Providers
     public sealed class ProviderInfo
     {
         public string Id;
-        public string Kind; // model | image | audio | marketplace
+        public string Kind; // model | image | audio
         public bool Configured;
         public string[] Capabilities;
     }

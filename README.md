@@ -21,8 +21,8 @@ This fork removes tools that most Unity workflows don't need and trims the defin
 
 | | Upstream | Light |
 |---|---|---|
-| Tools | 48 | **37** |
-| Tool definitions (approx. tokens) | ~28.9k | **~19.2k** |
+| Tools | 48 | **36** |
+| Tool definitions (approx. tokens) | ~28.9k | **~18.8k** |
 
 Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, shaders, procedural textures, camera, graphics, physics, builds, tests, UI Toolkit, API reflection — works the same as upstream.
 
@@ -31,6 +31,7 @@ Everything else — scenes, GameObjects, components, scripts, assets, prefabs, m
 | Tool | What it did |
 |---|---|
 | `generate_image`, `generate_model`, `generate_audio` | AI asset generation through third-party providers |
+| `import_model` | Sketchfab marketplace search and import |
 | `manage_probuilder` | ProBuilder mesh modeling |
 | `manage_profiler` | Profiler sessions, counters, memory snapshots, Frame Debugger |
 | `manage_vfx` | VFX Graph, particles, line and trail renderers |
@@ -40,7 +41,7 @@ Everything else — scenes, GameObjects, components, scripts, assets, prefabs, m
 | `debug_request_context` | Server debugging helper |
 | `manage_script_capabilities` | Listed the supported script-edit operations |
 
-`import_model` (Sketchfab) and `import_model_file` (local `.fbx`/`.obj`/`.glb`/`.gltf`) are **kept**.
+`import_model_file` (local `.fbx`/`.obj`/`.glb`/`.gltf`/`.zip`) is **kept**.
 
 Each removed tool is gone from the Python server, the Unity handlers, the CLI, the tests and the bundled `unity-mcp-skill` docs, so nothing still describes a tool that no longer exists.
 

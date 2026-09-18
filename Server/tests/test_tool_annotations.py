@@ -49,9 +49,7 @@ NON_DESTRUCTIVE = {
     "set_active_instance",
     # Toggles which tools are visible to this session.
     "manage_tools",
-    # Reads counters / starts a profiler session; writes no project asset.
-    # Generate into a staging area; the import step is a separate tool.
-    "import_model",
+    # Copies a local model file into Assets/ and imports it.
     "import_model_file",
 }
 

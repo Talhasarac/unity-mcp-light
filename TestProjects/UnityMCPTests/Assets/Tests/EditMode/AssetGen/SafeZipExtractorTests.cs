@@ -72,7 +72,7 @@ namespace MCPForUnityTests.Editor.AssetGen
         [Test]
         public void Allowlist_SkipsDisallowedEntries()
         {
-            // A hostile marketplace archive: a valid model plus an editor script + a managed dll.
+            // A hostile archive: a valid model plus an editor script + a managed dll.
             string zip = MakeMultiZip(
                 ("teapot.obj", "o teapot"),
                 ("Editor/Hack.cs", "// [InitializeOnLoad] arbitrary code"),

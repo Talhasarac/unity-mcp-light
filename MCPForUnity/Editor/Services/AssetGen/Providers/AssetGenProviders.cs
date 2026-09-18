@@ -6,7 +6,7 @@ namespace MCPForUnity.Editor.Services.AssetGen.Providers
 {
     /// <summary>
     /// Factory + registry for asset-gen provider adapters. Resolves a provider id to its adapter
-    /// (model: tripo/meshy; image: fal/openrouter; audio: fal; marketplace: sketchfab); unknown ids
+    /// (model: tripo/meshy; image: fal/openrouter; audio: fal); unknown ids
     /// throw <see cref="NotSupportedException"/>. <see cref="List"/> advertises providers and reports
     /// <c>Configured</c> existence only — never a key value.
     /// </summary>
@@ -49,24 +49,12 @@ namespace MCPForUnity.Editor.Services.AssetGen.Providers
             }
         }
 
-        public static IMarketplaceProviderAdapter Marketplace(string id)
-        {
-            switch ((id ?? string.Empty).ToLowerInvariant())
-            {
-                case "sketchfab":
-                    return new SketchfabAdapter();
-                default:
-                    throw new NotSupportedException($"Unknown marketplace provider '{id}'.");
-            }
-        }
-
         public static IReadOnlyList<ProviderInfo> List()
         {
             return new List<ProviderInfo>
             {
                 new ProviderInfo { Id = "tripo", Kind = "model", Configured = IsConfigured("tripo"), Capabilities = new[] { "text", "image" } },
                 new ProviderInfo { Id = "meshy", Kind = "model", Configured = IsConfigured("meshy"), Capabilities = new[] { "text", "image" } },
-                new ProviderInfo { Id = "sketchfab", Kind = "marketplace", Configured = IsConfigured("sketchfab"), Capabilities = new[] { "search", "import" } },
                 new ProviderInfo { Id = "fal", Kind = "image", Configured = IsConfigured("fal"), Capabilities = new[] { "text", "image" } },
                 new ProviderInfo { Id = "openrouter", Kind = "image", Configured = IsConfigured("openrouter"), Capabilities = new[] { "text", "image" } },
                 // fal appears twice by design — once per kind (image + audio) — sharing the single "fal" key.
