@@ -18,14 +18,11 @@ _tool_registry: list[dict[str, Any]] = []
 TOOL_GROUPS: dict[str, str] = {
     "core": "Essential scene, script, asset & editor tools (always on by default)",
     "docs": "Unity API reflection and documentation lookup",
-    "vfx": "Visual effects – VFX Graph, shaders, procedural textures",
     "animation": "Animator control & AnimationClip creation",
     "ui": "UI Toolkit (UXML, USS, UIDocument)",
     "scripting_ext": "ScriptableObject management",
     "testing": "Test runner & async test jobs",
-    "probuilder": "ProBuilder 3D modeling – requires com.unity.probuilder package",
-    "profiling": "Unity Profiler session control, counters, memory snapshots & Frame Debugger",
-    "asset_gen": "AI asset generation – 3D model gen/import, 2D image gen & audio gen (bring-your-own-key)",
+    "asset_gen": "3D model import – Sketchfab marketplace & local model files",
 }
 
 DEFAULT_ENABLED_GROUPS: set[str] = {"core"}

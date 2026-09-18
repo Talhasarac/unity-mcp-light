@@ -616,49 +616,6 @@ async def manage_script(
 
 
 @mcp_for_unity_tool(
-    unity_target=None,
-    group=None,
-    description=(
-        """Get manage_script capabilities (supported ops, limits, and guards).
-    Returns:
-        - ops: list of supported structured ops
-        - text_ops: list of supported text ops
-        - max_edit_payload_bytes: server edit payload cap
-        - guards: header/using guard enabled flag"""
-    ),
-    annotations=ToolAnnotations(
-        title="Manage Script Capabilities",
-        readOnlyHint=True,
-        destructiveHint=False,
-        idempotentHint=True,
-        openWorldHint=False,
-    ),
-)
-async def manage_script_capabilities(ctx: Context) -> dict[str, Any]:
-    await ctx.info("Processing manage_script_capabilities")
-    try:
-        # Keep in sync with server/Editor ManageScript implementation
-        ops = [
-            "replace_class", "delete_class", "replace_method", "delete_method",
-            "insert_method", "anchor_insert", "anchor_delete", "anchor_replace"
-        ]
-        text_ops = ["replace_range", "regex_replace", "prepend", "append"]
-        # Match ManageScript.MaxEditPayloadBytes if exposed; hardcode a sensible default fallback
-        max_edit_payload_bytes = 256 * 1024
-        guards = {"using_guard": True}
-        extras = {"get_sha": True}
-        return {"success": True, "data": {
-            "ops": ops,
-            "text_ops": text_ops,
-            "max_edit_payload_bytes": max_edit_payload_bytes,
-            "guards": guards,
-            "extras": extras,
-        }}
-    except Exception as e:
-        return {"success": False, "error": f"capabilities error: {e}"}
-
-
-@mcp_for_unity_tool(
     unity_target="manage_script",
     description="Get SHA256 and basic metadata for a Unity C# script without returning file contents. Requires uri (script path under Assets/ or mcpforunity://path/Assets/... or file://...).",
     annotations=ToolAnnotations(

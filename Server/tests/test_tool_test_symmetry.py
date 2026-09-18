@@ -22,13 +22,12 @@ TOOLS_DIR = Path(__file__).resolve().parents[1] / "src" / "services" / "tools"
 TESTS_DIR = Path(__file__).resolve().parent
 
 # Modules under tools/ that are infrastructure, not user-facing tool surfaces.
-NOT_TOOLS = {"__init__", "utils", "preflight", "debug_request_context"}
+NOT_TOOLS = {"__init__", "utils", "preflight"}
 
 # Tool modules without any test reference today. Do NOT add to this list for new
 # tools -- new tools must ship with a test. Remove an entry once coverage lands.
 KNOWN_UNTESTED = {
     "execute_menu_item",
-    "manage_shader",
     "manage_tools",
 }
 

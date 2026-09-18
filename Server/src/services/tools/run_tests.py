@@ -258,7 +258,7 @@ async def get_test_job(
     wait_timeout: Annotated[int | None,
                             "If set, wait up to this many seconds for tests to complete before returning. "
                             "Reduces polling frequency and avoids client-side loop detection. "
-                            "Recommended: 30-60 seconds. Returns immediately if tests complete sooner."] = None,
+                            "Recommended: 15-30 seconds. Returns immediately if tests complete sooner."] = None,
 ) -> GetTestJobResponse | MCPResponse:
     unity_instance = await get_unity_instance_from_context(ctx)
 

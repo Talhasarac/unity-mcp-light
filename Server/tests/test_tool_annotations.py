@@ -31,11 +31,9 @@ from utils.module_discovery import discover_modules
 # tool that writes to the project, and do not set readOnlyHint on a tool whose
 # body calls preflight(refresh_if_dirty=True) -- that can trigger a domain reload.
 READ_ONLY = {
-    "debug_request_context",
     "find_in_file",
     "get_sha",
     "get_test_job",
-    "manage_script_capabilities",
     "unity_docs",
     "unity_reflect",
     "validate_script",
@@ -53,11 +51,7 @@ NON_DESTRUCTIVE = {
     # Toggles which tools are visible to this session.
     "manage_tools",
     # Reads counters / starts a profiler session; writes no project asset.
-    "manage_profiler",
     # Generate into a staging area; the import step is a separate tool.
-    "generate_audio",
-    "generate_image",
-    "generate_model",
     "import_model",
     "import_model_file",
 }

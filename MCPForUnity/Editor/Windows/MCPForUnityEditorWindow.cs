@@ -895,17 +895,6 @@ namespace MCPForUnity.Editor.Windows
                     ? (Action<Action>)(done => { UninstallRoslyn(); done?.Invoke(); })
                     : null);
 
-            // ProBuilder
-            bool hasProBuilder = Type.GetType("UnityEngine.ProBuilder.ProBuilderMesh, Unity.ProBuilder") != null;
-            AddDependencyRow(content,
-                "ProBuilder",
-                "Required for the manage_probuilder tool (probuilder group).",
-                hasProBuilder,
-                "Installed",
-                "Not installed",
-                done => InstallUpmPackage("com.unity.probuilder", done),
-                done => RemoveUpmPackage("com.unity.probuilder", done));
-
             // Cinemachine
             bool hasCinemachine = Type.GetType("Unity.Cinemachine.CinemachineCamera, Unity.Cinemachine") != null
                 || Type.GetType("Cinemachine.CinemachineVirtualCamera, Cinemachine") != null;
@@ -918,24 +907,13 @@ namespace MCPForUnity.Editor.Windows
                 done => InstallUpmPackage("com.unity.cinemachine", done),
                 done => RemoveUpmPackage("com.unity.cinemachine", done));
 
-            // VFX Graph — uses preprocessor symbol, so check via UPM package list
-            bool hasVfxGraph = IsUpmPackageInstalled("com.unity.visualeffectgraph");
-            AddDependencyRow(content,
-                "VFX Graph",
-                "Enables VisualEffect support in manage_vfx tool (vfx group).",
-                hasVfxGraph,
-                "Installed",
-                "Not installed \u2014 VFX tool falls back to ParticleSystem/LineRenderer",
-                done => InstallUpmPackage("com.unity.visualeffectgraph", done),
-                done => RemoveUpmPackage("com.unity.visualeffectgraph", done));
-
             // glTFast — uses an assembly type, but also check via UPM package list
             bool hasGltfast = IsUpmPackageInstalled("com.unity.cloud.gltfast") || Type.GetType("GLTFast.GltfImport, glTFast") != null;
             AddDependencyRow(content,
                 "glTFast (glTF/GLB import)",
-                "Enables .glb/.gltf model import for the AI Asset Generation tools (asset_gen group).",
+                "Enables .glb/.gltf model import for the model import tools (asset_gen group).",
                 hasGltfast,
-                "Installed — GLB generation/import works",
+                "Installed — GLB import works",
                 "Not installed — GLB import is unavailable; FBX still works, or install to enable GLB",
                 done => InstallUpmPackage("com.unity.cloud.gltfast", done),
                 done => RemoveUpmPackage("com.unity.cloud.gltfast", done));

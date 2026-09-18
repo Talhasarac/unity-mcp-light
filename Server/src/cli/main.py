@@ -263,11 +263,7 @@ def register_commands():
         ("cli.commands.audio", "audio"),
         ("cli.commands.ui", "ui"),
         ("cli.commands.instance", "instance"),
-        ("cli.commands.shader", "shader"),
-        ("cli.commands.vfx", "vfx"),
         ("cli.commands.batch", "batch"),
-        ("cli.commands.texture", "texture"),
-        ("cli.commands.probuilder", "probuilder"),
         ("cli.commands.build", "build"),
         ("cli.commands.camera", "camera"),
         ("cli.commands.graphics", "graphics"),
@@ -275,7 +271,6 @@ def register_commands():
         ("cli.commands.reflect", "reflect"),
         ("cli.commands.docs", "docs"),
         ("cli.commands.physics", "physics"),
-        ("cli.commands.profiler", "profiler"),
     ]
 
     for module_name, command_name in optional_commands:
