@@ -541,7 +541,7 @@ namespace MCPForUnity.Editor.Setup
             {
                 throw new InvalidOperationException(
                     "Install Dir contains unmanaged files. " +
-                    "Please choose an empty folder or an existing unity-mcp-skill folder.");
+                    "Please choose an empty folder or an existing unity-mcp-light folder.");
             }
 
             File.WriteAllText(markerPath, "managed-by-unity-mcp-skill-sync");

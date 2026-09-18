@@ -14,7 +14,7 @@ namespace MCPForUnityTests.Editor.Helpers
     {
         /// <summary>
         /// Validates that a TOML args array contains the expected uvx structure:
-        /// --from, a mcpforunityserver reference, mcp-for-unity package name,
+        /// --from, the server package source, mcp-for-unity package name,
         /// and optionally --prerelease/explicit (only for prerelease builds).
         /// </summary>
         private static void AssertValidUvxArgs(TomlArray args)
@@ -24,7 +24,7 @@ namespace MCPForUnityTests.Editor.Helpers
                 argValues.Add((child as TomlString).Value);
 
             Assert.IsTrue(argValues.Contains("--from"), "Args should contain --from");
-            Assert.IsTrue(argValues.Any(a => a.Contains("mcpforunityserver")), "Args should contain PyPI package reference");
+            Assert.IsTrue(argValues.Any(a => a.Contains("unity-mcp-light")), "Args should contain the server package source");
             Assert.IsTrue(argValues.Contains("mcp-for-unity"), "Args should contain package name");
 
             // Prerelease builds include --prerelease explicit before --from
@@ -145,7 +145,7 @@ namespace MCPForUnityTests.Editor.Helpers
         {
             string toml = string.Join("\n", new[]
             {
-                "[mcp_servers.unityMCP]",
+                "[mcp_servers.unity-mcp-light]",
                 "command = \"uvx --from git+https://github.com/CoplayDev/unity-mcp@v6.3.0#subdirectory=Server\"",
                 "args = [\"mcp-for-unity\"]"
             });
@@ -162,7 +162,7 @@ namespace MCPForUnityTests.Editor.Helpers
         {
             string toml = string.Join("\n", new[]
             {
-                "[mcp_servers.unityMCP]",
+                "[mcp_servers.unity-mcp-light]",
                 "command = \"uvx\"",
                 "args = [",
                 "  \"mcp-for-unity\",",
@@ -181,7 +181,7 @@ namespace MCPForUnityTests.Editor.Helpers
         {
             string toml = string.Join("\n", new[]
             {
-                "[mcp_servers.unityMCP]",
+                "[mcp_servers.unity-mcp-light]",
                 "command = \"uvx\"",
                 "args = [",
                 "  \"mcp-for-unity\", # package name",
@@ -200,7 +200,7 @@ namespace MCPForUnityTests.Editor.Helpers
         {
             string toml = string.Join("\n", new[]
             {
-                "[mcp_servers.unityMCP] # annotated header",
+                "[mcp_servers.unity-mcp-light] # annotated header",
                 "command = \"uvx\"",
                 "args = [\"mcp-for-unity\"]"
             });
@@ -217,7 +217,7 @@ namespace MCPForUnityTests.Editor.Helpers
         {
             string toml = string.Join("\n", new[]
             {
-                "[mcp_servers.unityMCP]",
+                "[mcp_servers.unity-mcp-light]",
                 "command = 'uvx'",
                 "args = ['mcp-for-unity']"
             });
@@ -258,12 +258,12 @@ namespace MCPForUnityTests.Editor.Helpers
             Assert.IsInstanceOf<TomlTable>(mcpServersNode, "mcp_servers should be a table");
 
             var mcpServers = mcpServersNode as TomlTable;
-            Assert.IsTrue(mcpServers.TryGetNode("unityMCP", out var unityMcpNode), "mcp_servers should contain unityMCP");
-            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unityMCP should be a table");
+            Assert.IsTrue(mcpServers.TryGetNode("unity-mcp-light", out var unityMcpNode), "mcp_servers should contain unity-mcp-light");
+            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unity-mcp-light should be a table");
 
             var unityMcp = unityMcpNode as TomlTable;
-            Assert.IsTrue(unityMcp.TryGetNode("command", out var commandNode), "unityMCP should contain command");
-            Assert.IsTrue(unityMcp.TryGetNode("args", out var argsNode), "unityMCP should contain args");
+            Assert.IsTrue(unityMcp.TryGetNode("command", out var commandNode), "unity-mcp-light should contain command");
+            Assert.IsTrue(unityMcp.TryGetNode("args", out var argsNode), "unity-mcp-light should contain args");
 
             // Verify command contains uvx
             var command = (commandNode as TomlString).Value;
@@ -315,12 +315,12 @@ namespace MCPForUnityTests.Editor.Helpers
             Assert.IsInstanceOf<TomlTable>(mcpServersNode, "mcp_servers should be a table");
 
             var mcpServers = mcpServersNode as TomlTable;
-            Assert.IsTrue(mcpServers.TryGetNode("unityMCP", out var unityMcpNode), "mcp_servers should contain unityMCP");
-            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unityMCP should be a table");
+            Assert.IsTrue(mcpServers.TryGetNode("unity-mcp-light", out var unityMcpNode), "mcp_servers should contain unity-mcp-light");
+            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unity-mcp-light should be a table");
 
             var unityMcp = unityMcpNode as TomlTable;
-            Assert.IsTrue(unityMcp.TryGetNode("command", out var commandNode), "unityMCP should contain command");
-            Assert.IsTrue(unityMcp.TryGetNode("args", out var argsNode), "unityMCP should contain args");
+            Assert.IsTrue(unityMcp.TryGetNode("command", out var commandNode), "unity-mcp-light should contain command");
+            Assert.IsTrue(unityMcp.TryGetNode("args", out var argsNode), "unity-mcp-light should contain args");
 
             // Verify command contains uvx
             var command = (commandNode as TomlString).Value;
@@ -374,12 +374,12 @@ namespace MCPForUnityTests.Editor.Helpers
             Assert.IsInstanceOf<TomlTable>(mcpServersNode, "mcp_servers should be a table");
 
             var mcpServers = mcpServersNode as TomlTable;
-            Assert.IsTrue(mcpServers.TryGetNode("unityMCP", out var unityMcpNode), "mcp_servers should contain unityMCP");
-            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unityMCP should be a table");
+            Assert.IsTrue(mcpServers.TryGetNode("unity-mcp-light", out var unityMcpNode), "mcp_servers should contain unity-mcp-light");
+            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unity-mcp-light should be a table");
 
             var unityMcp = unityMcpNode as TomlTable;
-            Assert.IsTrue(unityMcp.TryGetNode("command", out var commandNode), "unityMCP should contain command");
-            Assert.IsTrue(unityMcp.TryGetNode("args", out var argsNode), "unityMCP should contain args");
+            Assert.IsTrue(unityMcp.TryGetNode("command", out var commandNode), "unity-mcp-light should contain command");
+            Assert.IsTrue(unityMcp.TryGetNode("args", out var argsNode), "unity-mcp-light should contain args");
 
             // Verify command contains uvx
             var command = (commandNode as TomlString).Value;
@@ -440,12 +440,12 @@ namespace MCPForUnityTests.Editor.Helpers
             Assert.IsInstanceOf<TomlTable>(mcpServersNode, "mcp_servers should be a table");
 
             var mcpServers = mcpServersNode as TomlTable;
-            Assert.IsTrue(mcpServers.TryGetNode("unityMCP", out var unityMcpNode), "mcp_servers should contain unityMCP");
-            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unityMCP should be a table");
+            Assert.IsTrue(mcpServers.TryGetNode("unity-mcp-light", out var unityMcpNode), "mcp_servers should contain unity-mcp-light");
+            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unity-mcp-light should be a table");
 
             var unityMcp = unityMcpNode as TomlTable;
-            Assert.IsTrue(unityMcp.TryGetNode("command", out var commandNode), "unityMCP should contain command");
-            Assert.IsTrue(unityMcp.TryGetNode("args", out var argsNode), "unityMCP should contain args");
+            Assert.IsTrue(unityMcp.TryGetNode("command", out var commandNode), "unity-mcp-light should contain command");
+            Assert.IsTrue(unityMcp.TryGetNode("args", out var argsNode), "unity-mcp-light should contain args");
 
             // Verify command contains uvx
             var command = (commandNode as TomlString).Value;
@@ -486,8 +486,8 @@ namespace MCPForUnityTests.Editor.Helpers
             Assert.IsInstanceOf<TomlTable>(mcpServersNode, "mcp_servers should be a table");
 
             var mcpServers = mcpServersNode as TomlTable;
-            Assert.IsTrue(mcpServers.TryGetNode("unityMCP", out var unityMcpNode), "mcp_servers should contain unityMCP");
-            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unityMCP should be a table");
+            Assert.IsTrue(mcpServers.TryGetNode("unity-mcp-light", out var unityMcpNode), "mcp_servers should contain unity-mcp-light");
+            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unity-mcp-light should be a table");
 
             var unityMcp = unityMcpNode as TomlTable;
 
@@ -500,7 +500,7 @@ namespace MCPForUnityTests.Editor.Helpers
             Assert.IsTrue((rmcpNode as TomlBoolean).Value, "rmcp_client should be true");
             
             // Verify url field is present
-            Assert.IsTrue(unityMcp.TryGetNode("url", out var urlNode), "unityMCP should contain url in HTTP mode");
+            Assert.IsTrue(unityMcp.TryGetNode("url", out var urlNode), "unity-mcp-light should contain url in HTTP mode");
             Assert.IsInstanceOf<TomlString>(urlNode, "url should be a string");
 
             var url = (urlNode as TomlString).Value;
@@ -520,7 +520,7 @@ namespace MCPForUnityTests.Editor.Helpers
 
             string toml = string.Join("\n", new[]
             {
-                "[mcp_servers.unityMCP]",
+                "[mcp_servers.unity-mcp-light]",
                 "url = \"http://localhost:8080/mcp/v1/rpc\""
             });
 
@@ -567,8 +567,8 @@ namespace MCPForUnityTests.Editor.Helpers
             Assert.IsInstanceOf<TomlTable>(mcpServersNode, "mcp_servers should be a table");
 
             var mcpServers = mcpServersNode as TomlTable;
-            Assert.IsTrue(mcpServers.TryGetNode("unityMCP", out var unityMcpNode), "mcp_servers should contain unityMCP");
-            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unityMCP should be a table");
+            Assert.IsTrue(mcpServers.TryGetNode("unity-mcp-light", out var unityMcpNode), "mcp_servers should contain unity-mcp-light");
+            Assert.IsInstanceOf<TomlTable>(unityMcpNode, "unity-mcp-light should be a table");
 
             var unityMcp = unityMcpNode as TomlTable;
 
@@ -581,7 +581,7 @@ namespace MCPForUnityTests.Editor.Helpers
             Assert.IsTrue((rmcpNode as TomlBoolean).Value, "rmcp_client should be true");
 
             // Verify url field is present
-            Assert.IsTrue(unityMcp.TryGetNode("url", out var urlNode), "unityMCP should contain url in HTTP mode");
+            Assert.IsTrue(unityMcp.TryGetNode("url", out var urlNode), "unity-mcp-light should contain url in HTTP mode");
             Assert.IsInstanceOf<TomlString>(urlNode, "url should be a string");
 
             var url = (urlNode as TomlString).Value;

@@ -1,3 +1,4 @@
+using MCPForUnity.Editor.Constants;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -29,7 +30,7 @@ namespace MCPForUnity.Editor.Clients.Configurators
         public override IList<string> GetInstallationSteps() => new List<string>
         {
             "Ensure Kimi Code CLI is installed (pip install kimi-cli or see https://github.com/MoonshotAI/kimi-cli)",
-            "Click 'Auto Configure' to automatically add UnityMCP to ~/.kimi/mcp.json",
+            $"Click 'Auto Configure' to automatically add {ProductInfo.McpServerName} to ~/.kimi/mcp.json",
             "OR click 'Manual Setup' to copy the configuration JSON",
             "Open ~/.kimi/mcp.json and paste the configuration",
             "Save and restart Kimi Code CLI",

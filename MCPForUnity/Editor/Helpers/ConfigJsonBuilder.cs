@@ -23,7 +23,7 @@ namespace MCPForUnity.Editor.Helpers
             var unity = new JObject();
             PopulateUnityNode(unity, uvPath, client, isVSCode);
 
-            container["unityMCP"] = unity;
+            container[ProductInfo.McpServerName] = unity;
 
             return root.ToString(Formatting.Indented);
         }
@@ -34,10 +34,10 @@ namespace MCPForUnity.Editor.Helpers
             bool isVSCode = client?.IsVsCodeLayout == true;
             if (!string.IsNullOrEmpty(client?.SchemaUrl) && root["$schema"] == null) root["$schema"] = client.SchemaUrl;
             JObject container = EnsureObject(root, GetContainerKey(client, isVSCode));
-            JObject unity = container["unityMCP"] as JObject ?? new JObject();
+            JObject unity = container[ProductInfo.McpServerName] as JObject ?? new JObject();
             PopulateUnityNode(unity, uvPath, client, isVSCode);
 
-            container["unityMCP"] = unity;
+            container[ProductInfo.McpServerName] = unity;
             return root;
         }
 

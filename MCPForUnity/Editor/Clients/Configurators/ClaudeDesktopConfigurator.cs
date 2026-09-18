@@ -26,7 +26,7 @@ namespace MCPForUnity.Editor.Clients.Configurators
         public override string GetSkillInstallPath()
         {
             var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            return Path.Combine(userHome, ".claude", "skills", "unity-mcp-skill");
+            return Path.Combine(userHome, ".claude", "skills", "unity-mcp-light");
         }
 
         public override IList<string> GetInstallationSteps() => new List<string>

@@ -319,7 +319,7 @@ Reading resources (read this before using ANY resource named below):
 - Resources are addressed by URI, never by name. A resource's name and URI are NOT interchangeable: names use underscores (e.g. editor_state) while URIs use slashes (e.g. mcpforunity://editor/state). Do NOT build a URI by swapping separators in the name — you will 404.
 - These instructions always spell resources as full mcpforunity:// URIs — read one exactly as written. If you only have a name (from resources/list or another tool's output), look its URI up in resources/list rather than guessing it.
 - Resource payloads are wrapped: the content lives under a top-level `data` object, so field paths are `data.<section>.<field>` (e.g. `data.advice.ready_for_tools`), not bare top-level fields.
-- The mcpforunity:// URI names the resource, not the server. Some clients take a separate server key on a resource read — in Codex, tools are exposed as mcp__unityMCP__* but resources/read wants server: "unityMCP". If a read fails with an unknown-server error, list resources first and use the key exactly as returned.
+- The mcpforunity:// URI names the resource, not the server. Some clients take a separate server key on a resource read — in Codex, tools are exposed as mcp__unity-mcp-light__* but resources/read wants server: "unity-mcp-light". If a read fails with an unknown-server error, list resources first and use the key exactly as returned.
 
 Script Management:
 - After creating or modifying scripts (by your own tools or the `manage_script` tool) use `read_console` to check for compilation errors before proceeding
@@ -375,7 +375,7 @@ def _normalize_instance_token(instance_token: str | None) -> tuple[str | None, s
 
 def create_mcp_server(project_scoped_tools: bool) -> FastMCP:
     mcp = FastMCP(
-        name="mcp-for-unity-server",
+        name="unity-mcp-light",
         lifespan=server_lifespan,
         instructions=_build_instructions(project_scoped_tools),
     )

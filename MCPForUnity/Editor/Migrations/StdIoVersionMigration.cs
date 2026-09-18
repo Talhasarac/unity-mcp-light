@@ -132,12 +132,12 @@ namespace MCPForUnity.Editor.Migrations
                 JToken unityNode = null;
                 if (client.IsVsCodeLayout)
                 {
-                    unityNode = root.SelectToken("servers.unityMCP")
-                               ?? root.SelectToken("mcp.servers.unityMCP");
+                    unityNode = root["servers"]?[ProductInfo.McpServerName]
+                               ?? root["mcp"]?["servers"]?[ProductInfo.McpServerName];
                 }
                 else
                 {
-                    unityNode = root.SelectToken("mcpServers.unityMCP");
+                    unityNode = root["mcpServers"]?[ProductInfo.McpServerName];
                 }
 
                 if (unityNode == null) return false;

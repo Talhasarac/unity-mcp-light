@@ -75,7 +75,7 @@ namespace MCPForUnity.Editor.Helpers
                 unityMCP["startup_timeout_sec"] = new TomlInteger { Value = 60 };
             }
 
-            mcpServers["unityMCP"] = unityMCP;
+            mcpServers[ProductInfo.McpServerName] = unityMCP;
             table["mcp_servers"] = mcpServers;
 
             using var writer = new StringWriter();
@@ -98,7 +98,7 @@ namespace MCPForUnity.Editor.Helpers
             var mcpServers = root["mcp_servers"] as TomlTable;
 
             // Create or update unityMCP table
-            mcpServers["unityMCP"] = CreateUnityMcpTable(uvPath);
+            mcpServers[ProductInfo.McpServerName] = CreateUnityMcpTable(uvPath);
 
             if (useHttpTransport)
             {
@@ -131,7 +131,7 @@ namespace MCPForUnity.Editor.Helpers
                 return false;
             }
 
-            if (!TryGetTable(servers, "unityMCP", out var unity))
+            if (!TryGetTable(servers, ProductInfo.McpServerName, out var unity))
             {
                 return false;
             }

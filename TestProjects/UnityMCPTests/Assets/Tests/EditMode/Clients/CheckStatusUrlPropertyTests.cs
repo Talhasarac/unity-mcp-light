@@ -46,7 +46,7 @@ namespace MCPForUnityTests.Editor.Clients
         {
             string configPath = Path.Combine(_tempDir, $"{urlProperty}.json");
             File.WriteAllText(configPath,
-                "{\"mcpServers\":{\"unityMCP\":{\"" + urlProperty + "\":\"http://localhost:65535/mcp\"}}}");
+                "{\"mcpServers\":{\"unity-mcp-light\":{\"" + urlProperty + "\":\"http://localhost:65535/mcp\"}}}");
 
             var client = new McpClient
             {

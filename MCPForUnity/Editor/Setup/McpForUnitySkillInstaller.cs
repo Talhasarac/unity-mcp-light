@@ -16,7 +16,7 @@ namespace MCPForUnity.Editor.Setup
         private const string InstallDirKey = "UnityMcpSkillSync.InstallDir";
         private const string CodexCli = "codex";
         private const string ClaudeCli = "claude";
-        private static readonly string[] BranchOptions = { "beta" };
+        private static readonly string[] BranchOptions = { "main" };
         private static readonly string[] CliOptions = { CodexCli, ClaudeCli };
 
         private string _repoUrl;
@@ -37,10 +37,10 @@ namespace MCPForUnity.Editor.Setup
         {
             var userHome = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             _repoUrl = EditorPrefs.GetString(RepoUrlKey, "https://github.com/Talhasarac/unity-mcp-light");
-            _targetBranch = EditorPrefs.GetString(BranchKey, "beta");
+            _targetBranch = EditorPrefs.GetString(BranchKey, "main");
             if (!BranchOptions.Contains(_targetBranch))
             {
-                _targetBranch = "beta";
+                _targetBranch = "main";
             }
             _cliType = EditorPrefs.GetString(CliKey, CodexCli);
             if (!CliOptions.Contains(_cliType))
@@ -172,7 +172,7 @@ namespace MCPForUnity.Editor.Setup
         private static string GetDefaultInstallDir(string userHome, string cliType)
         {
             var baseDir = IsClaudeCli(cliType) ? ".claude" : ".codex";
-            return Path.Combine(userHome, baseDir, "skills/unity-mcp-skill");
+            return Path.Combine(userHome, baseDir, "skills/unity-mcp-light");
         }
 
         private static bool IsClaudeCli(string cliType)

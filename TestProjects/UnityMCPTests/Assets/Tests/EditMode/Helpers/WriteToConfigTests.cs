@@ -110,8 +110,8 @@ namespace MCPForUnityTests.Editor.Helpers
             InvokeWriteToConfig(configPath, client);
 
             var root = JObject.Parse(File.ReadAllText(configPath));
-            var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
-            Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+            var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
             Assert.IsNull(unity["env"], "Windsurf configs should not include an env block");
             Assert.AreEqual(false, (bool)unity["disabled"], "disabled:false should be set for Windsurf when missing");
             AssertTransportConfiguration(unity, client);
@@ -132,8 +132,8 @@ namespace MCPForUnityTests.Editor.Helpers
             InvokeWriteToConfig(configPath, client);
 
             var root = JObject.Parse(File.ReadAllText(configPath));
-            var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
-            Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+            var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
             Assert.NotNull(unity["env"], "env should be present for all clients");
             Assert.IsTrue(unity["env"]!.Type == JTokenType.Object, "env should be an object");
             Assert.AreEqual(false, (bool)unity["disabled"], "disabled:false should be set for Kiro when missing");
@@ -150,8 +150,8 @@ namespace MCPForUnityTests.Editor.Helpers
             InvokeWriteToConfig(configPath, client);
 
             var root = JObject.Parse(File.ReadAllText(configPath));
-            var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
-            Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+            var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
             Assert.IsNull(unity["env"], "env should not be added for non-Windsurf/Kiro clients");
             Assert.IsNull(unity["disabled"], "disabled should not be added for non-Windsurf/Kiro clients");
             AssertTransportConfiguration(unity, client);
@@ -167,8 +167,8 @@ namespace MCPForUnityTests.Editor.Helpers
             InvokeWriteToConfig(configPath, client);
 
             var root = JObject.Parse(File.ReadAllText(configPath));
-            var unity = (JObject)root.SelectToken("servers.unityMCP");
-            Assert.NotNull(unity, "Expected servers.unityMCP node");
+            var unity = (JObject)root.SelectToken("servers['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected servers.unity-mcp-light node");
             Assert.IsNull(unity["env"], "env should not be added for VSCode client");
             Assert.IsNull(unity["disabled"], "disabled should not be added for VSCode client");
             AssertTransportConfiguration(unity, client);
@@ -184,8 +184,8 @@ namespace MCPForUnityTests.Editor.Helpers
             InvokeWriteToConfig(configPath, client);
 
             var root = JObject.Parse(File.ReadAllText(configPath));
-            var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
-            Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+            var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
             Assert.IsNull(unity["env"], "env should not be added for Trae client");
             Assert.IsNull(unity["disabled"], "disabled should not be added for Trae client");
             AssertTransportConfiguration(unity, client);
@@ -212,8 +212,8 @@ namespace MCPForUnityTests.Editor.Helpers
                     InvokeWriteToConfig(configPath, client);
 
                     var root = JObject.Parse(File.ReadAllText(configPath));
-                    var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
-                    Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+                    var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
+                    Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
                     Assert.AreEqual(_fakeUvPath, (string)unity["command"], "Claude Desktop should use absolute uvx path");
                     Assert.IsNull(unity["env"], "Claude Desktop config should not include env block when not required");
                     AssertTransportConfiguration(unity, client);
@@ -235,7 +235,7 @@ namespace MCPForUnityTests.Editor.Helpers
             {
                 ["mcpServers"] = new JObject
                 {
-                    ["unityMCP"] = new JObject
+                    ["unity-mcp-light"] = new JObject
                     {
                         ["command"] = _fakeUvPath,
                         ["args"] = new JArray("run", "--directory", "/old/path", "server.py"),
@@ -255,8 +255,8 @@ namespace MCPForUnityTests.Editor.Helpers
             InvokeWriteToConfig(configPath, client);
 
             var root = JObject.Parse(File.ReadAllText(configPath));
-            var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
-            Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+            var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
             Assert.AreEqual("bar", (string)unity["env"]!["FOO"], "Existing env should be preserved");
             Assert.AreEqual(true, (bool)unity["disabled"], "Existing disabled value should be preserved");
             AssertTransportConfiguration(unity, client);
@@ -271,7 +271,7 @@ namespace MCPForUnityTests.Editor.Helpers
             {
                 ["mcpServers"] = new JObject
                 {
-                    ["unityMCP"] = new JObject
+                    ["unity-mcp-light"] = new JObject
                     {
                         ["command"] = _fakeUvPath,
                         ["args"] = new JArray("run", "--directory", "/old/path", "server.py"),
@@ -292,8 +292,8 @@ namespace MCPForUnityTests.Editor.Helpers
             InvokeWriteToConfig(configPath, client);
 
             var root = JObject.Parse(File.ReadAllText(configPath));
-            var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
-            Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+            var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
             Assert.IsNull(unity["env"], "Windsurf config should strip any existing env block");
             Assert.AreEqual(true, (bool)unity["disabled"], "Existing disabled value should be preserved");
             AssertTransportConfiguration(unity, client);
@@ -317,8 +317,8 @@ namespace MCPForUnityTests.Editor.Helpers
                 InvokeWriteToConfig(configPath, client);
 
                 var root = JObject.Parse(File.ReadAllText(configPath));
-                var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
-                Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+                var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
+                Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
                 AssertTransportConfiguration(unity, client);
             });
         }
@@ -335,8 +335,8 @@ namespace MCPForUnityTests.Editor.Helpers
                 InvokeWriteToConfig(configPath, client);
 
                 var root = JObject.Parse(File.ReadAllText(configPath));
-                var unity = (JObject)root.SelectToken("servers.unityMCP");
-                Assert.NotNull(unity, "Expected servers.unityMCP node");
+                var unity = (JObject)root.SelectToken("servers['unity-mcp-light']");
+                Assert.NotNull(unity, "Expected servers.unity-mcp-light node");
                 AssertTransportConfiguration(unity, client);
             });
         }
@@ -372,7 +372,7 @@ namespace MCPForUnityTests.Editor.Helpers
                 {
                     ["servers"] = new JObject
                     {
-                        ["unityMCP"] = new JObject
+                        ["unity-mcp-light"] = new JObject
                         {
                             ["command"] = command,
                             ["args"] = new JArray("run", "--directory", directory, "server.py"),
@@ -387,7 +387,7 @@ namespace MCPForUnityTests.Editor.Helpers
                 {
                     ["mcpServers"] = new JObject
                     {
-                        ["unityMCP"] = new JObject
+                        ["unity-mcp-light"] = new JObject
                         {
                             ["command"] = command,
                             ["args"] = new JArray("run", "--directory", directory, "server.py")

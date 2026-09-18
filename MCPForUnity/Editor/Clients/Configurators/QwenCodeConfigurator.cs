@@ -1,3 +1,4 @@
+using MCPForUnity.Editor.Constants;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -32,7 +33,7 @@ namespace MCPForUnity.Editor.Clients.Configurators
         {
             "Ensure Qwen Code is installed (npm install -g @qwen-code/qwen-code or download from https://github.com/QwenLM/qwen-code)",
             "Open Qwen Code",
-            "Click 'Auto Configure' to automatically add UnityMCP to settings.json",
+            $"Click 'Auto Configure' to automatically add {ProductInfo.McpServerName} to settings.json",
             "OR click 'Manual Setup' to copy the configuration JSON",
             "Open ~/.qwen/settings.json and paste the configuration",
             "Save and restart Qwen Code",

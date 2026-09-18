@@ -1,3 +1,4 @@
+using MCPForUnity.Editor.Constants;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,7 +15,7 @@ namespace MCPForUnity.Editor.Clients.Configurators
     /// </summary>
     public class OpenCodeConfigurator : McpClientConfiguratorBase
     {
-        private const string ServerName = "unityMCP";
+        private const string ServerName = ProductInfo.McpServerName;
         private const string SchemaUrl = "https://opencode.ai/config.json";
         private const string RemoteType = "remote";
         private const string LocalType = "local";

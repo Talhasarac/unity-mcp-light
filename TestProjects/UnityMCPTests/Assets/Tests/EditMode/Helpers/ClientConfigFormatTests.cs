@@ -83,8 +83,8 @@ namespace MCPForUnityTests.Editor.Helpers
                 "Kilo Code config should include the kilo.jsonc $schema at the root");
             Assert.IsNull(root["mcpServers"], "Kilo Code must not use the legacy \"mcpServers\" container");
 
-            var unity = (JObject)root.SelectToken("mcp.unityMCP");
-            Assert.NotNull(unity, "Expected mcp.unityMCP node");
+            var unity = (JObject)root.SelectToken("mcp['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected mcp.unity-mcp-light node");
             Assert.AreEqual("remote", (string)unity["type"],
                 "Kilo Code HTTP config must use type:remote, not type:http/streamableHttp");
             Assert.AreEqual(true, (bool)unity["enabled"],
@@ -104,7 +104,7 @@ namespace MCPForUnityTests.Editor.Helpers
             {
                 ["mcp"] = new JObject
                 {
-                    ["unityMCP"] = new JObject
+                    ["unity-mcp-light"] = new JObject
                     {
                         ["command"] = "uvx",
                         ["args"] = new JArray("unity-mcp-server"),
@@ -117,8 +117,8 @@ namespace MCPForUnityTests.Editor.Helpers
 
             Assert.AreEqual("https://app.kilo.ai/config.json", (string)result["$schema"],
                 "Rewrite should add the kilo.jsonc $schema when missing");
-            var unity = (JObject)result.SelectToken("mcp.unityMCP");
-            Assert.NotNull(unity, "Expected mcp.unityMCP node");
+            var unity = (JObject)result.SelectToken("mcp['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected mcp.unity-mcp-light node");
             Assert.AreEqual("remote", (string)unity["type"],
                 "Existing config should be rewritten to type:remote for Kilo Code");
             Assert.AreEqual(true, (bool)unity["enabled"], "Existing config should gain enabled:true");
@@ -133,8 +133,8 @@ namespace MCPForUnityTests.Editor.Helpers
             var root = JObject.Parse(ConfigJsonBuilder.BuildManualConfigJson(uvPath: null, client));
 
             Assert.IsNull(root["$schema"], "Cline must not write a $schema");
-            var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
-            Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+            var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
+            Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
             Assert.AreEqual("streamableHttp", (string)unity["type"],
                 "Cline must keep type:streamableHttp after the name-check was replaced with a flag");
         }
@@ -146,9 +146,9 @@ namespace MCPForUnityTests.Editor.Helpers
             var client = new McpClient { name = "Cursor" };
 
             var root = JObject.Parse(ConfigJsonBuilder.BuildManualConfigJson(uvPath: null, client));
-            var unity = (JObject)root.SelectToken("mcpServers.unityMCP");
+            var unity = (JObject)root.SelectToken("mcpServers['unity-mcp-light']");
 
-            Assert.NotNull(unity, "Expected mcpServers.unityMCP node");
+            Assert.NotNull(unity, "Expected mcpServers.unity-mcp-light node");
             Assert.AreEqual("http", (string)unity["type"],
                 "Clients without HttpTypeValue should keep the generic type:http");
         }

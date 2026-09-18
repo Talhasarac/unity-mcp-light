@@ -18,7 +18,7 @@ namespace MCPForUnity.Editor.Clients.Configurators
     public class OpenClawConfigurator : McpClientConfiguratorBase
     {
         private const string PluginName = "openclaw-mcp-bridge";
-        private const string ServerName = "unityMCP";
+        private const string ServerName = ProductInfo.McpServerName;
         private const string HttpTransportName = "http";
         private const string StdioTransportName = "stdio";
         private const string StdioUrl = "stdio://local";
@@ -162,7 +162,7 @@ namespace MCPForUnity.Editor.Clients.Configurators
             "Install the bridge plugin: npm install -g openclaw-mcp-bridge (or pnpm add -g openclaw-mcp-bridge)",
             "In Unity MCP Light, choose OpenClaw and click Configure",
             "OpenClaw uses the currently selected Unity MCP Light transport (HTTP or stdio)",
-            "OpenClaw exposes a proxy tool such as unityMCP__call for Unity MCP access",
+            $"OpenClaw exposes a proxy tool such as {ProductInfo.McpServerName}__call for Unity MCP access",
             "Restart OpenClaw if the plugin does not hot-reload the new config"
         };
 

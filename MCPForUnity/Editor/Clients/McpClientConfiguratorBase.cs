@@ -182,9 +182,9 @@ namespace MCPForUnity.Editor.Clients
                         string containerKey = string.IsNullOrEmpty(client.ServerContainerKey)
                             ? "mcpServers" : client.ServerContainerKey;
                         unityToken = client.IsVsCodeLayout
-                            ? rootConfig["servers"]?["unityMCP"]
-                                ?? rootConfig["mcp"]?["servers"]?["unityMCP"]
-                            : rootConfig[containerKey]?["unityMCP"];
+                            ? rootConfig["servers"]?[ProductInfo.McpServerName]
+                                ?? rootConfig["mcp"]?["servers"]?[ProductInfo.McpServerName]
+                            : rootConfig[containerKey]?[ProductInfo.McpServerName];
                     }
 
                     if (unityToken is JObject unityObj)
@@ -390,14 +390,14 @@ namespace MCPForUnity.Editor.Clients
                 bool removed = false;
                 if (client.IsVsCodeLayout)
                 {
-                    if ((root["servers"] as JObject)?.Remove("unityMCP") == true) removed = true;
-                    if ((root["mcp"]?["servers"] as JObject)?.Remove("unityMCP") == true) removed = true;
+                    if ((root["servers"] as JObject)?.Remove(ProductInfo.McpServerName) == true) removed = true;
+                    if ((root["mcp"]?["servers"] as JObject)?.Remove(ProductInfo.McpServerName) == true) removed = true;
                 }
                 else
                 {
                     string containerKey = string.IsNullOrEmpty(client.ServerContainerKey)
                         ? "mcpServers" : client.ServerContainerKey;
-                    if ((root[containerKey] as JObject)?.Remove("unityMCP") == true) removed = true;
+                    if ((root[containerKey] as JObject)?.Remove(ProductInfo.McpServerName) == true) removed = true;
                 }
 
                 if (removed)
@@ -897,21 +897,21 @@ namespace MCPForUnity.Editor.Clients
                 if (serverTransport == Models.ConfiguredTransport.HttpRemote && !string.IsNullOrEmpty(apiKey))
                 {
                     string safeKey = SanitizeShellHeaderValue(apiKey);
-                    args = $"mcp add --scope local --transport http UnityMCP {httpUrl} --header \"{AuthConstants.ApiKeyHeader}: {safeKey}\"";
+                    args = $"mcp add --scope local --transport http {ProductInfo.McpServerName} {httpUrl} --header \"{AuthConstants.ApiKeyHeader}: {safeKey}\"";
                 }
                 else
                 {
-                    args = $"mcp add --scope local --transport http UnityMCP {httpUrl}";
+                    args = $"mcp add --scope local --transport http {ProductInfo.McpServerName} {httpUrl}";
                 }
             }
             else
             {
                 // Use --scope local to register in the project-local config, avoiding conflicts with user-level config (#664)
-                args = $"mcp add --scope local --transport stdio UnityMCP -- \"{uvxPath}\" {uvxDevFlags}{fromArgs} {packageName}";
+                args = $"mcp add --scope local --transport stdio {ProductInfo.McpServerName} -- \"{uvxPath}\" {uvxDevFlags}{fromArgs} {packageName}";
             }
 
             // Remove any existing registrations from ALL scopes to prevent stale config conflicts (#664)
-            McpLog.Info("Removing any existing UnityMCP registrations from all scopes before adding...");
+            McpLog.Info($"Removing any existing {ProductInfo.McpServerName} registrations from all scopes before adding...");
             RemoveFromAllScopes(claudePath, projectDir, pathPrepend);
 
             // Now add the registration
@@ -936,7 +936,7 @@ namespace MCPForUnity.Editor.Clients
             }
 
             // Remove from ALL scopes to ensure complete cleanup (#664)
-            McpLog.Info("Removing all UnityMCP registrations from all scopes...");
+            McpLog.Info($"Removing all {ProductInfo.McpServerName} registrations from all scopes...");
             RemoveFromAllScopes(claudePath, projectDir, pathPrepend);
 
             McpLog.Info("MCP server successfully unregistered from Claude Code.");
@@ -967,16 +967,16 @@ namespace MCPForUnity.Editor.Clients
                     if (!string.IsNullOrEmpty(apiKey))
                     {
                         string safeKey = SanitizeShellHeaderValue(apiKey);
-                        args = $"mcp add --scope local --transport http UnityMCP {httpUrl} --header \"{AuthConstants.ApiKeyHeader}: {safeKey}\"";
+                        args = $"mcp add --scope local --transport http {ProductInfo.McpServerName} {httpUrl} --header \"{AuthConstants.ApiKeyHeader}: {safeKey}\"";
                     }
                     else
                     {
-                        args = $"mcp add --scope local --transport http UnityMCP {httpUrl}";
+                        args = $"mcp add --scope local --transport http {ProductInfo.McpServerName} {httpUrl}";
                     }
                 }
                 else
                 {
-                    args = $"mcp add --scope local --transport http UnityMCP {httpUrl}";
+                    args = $"mcp add --scope local --transport http {ProductInfo.McpServerName} {httpUrl}";
                 }
             }
             else
@@ -985,7 +985,7 @@ namespace MCPForUnity.Editor.Clients
                 string devFlags = AssetPathUtility.GetUvxDevFlags();
                 string fromArgs = AssetPathUtility.GetBetaServerFromArgs(quoteFromPath: true);
                 // Use --scope local to register in the project-local config, avoiding conflicts with user-level config (#664)
-                args = $"mcp add --scope local --transport stdio UnityMCP -- \"{uvxPath}\" {devFlags}{fromArgs} {packageName}";
+                args = $"mcp add --scope local --transport stdio {ProductInfo.McpServerName} -- \"{uvxPath}\" {devFlags}{fromArgs} {packageName}";
             }
 
             string projectDir = GetClientProjectDir();
@@ -1013,7 +1013,7 @@ namespace MCPForUnity.Editor.Clients
             catch { }
 
             // Remove any existing registrations from ALL scopes to prevent stale config conflicts (#664)
-            McpLog.Info("Removing any existing UnityMCP registrations from all scopes before adding...");
+            McpLog.Info($"Removing any existing {ProductInfo.McpServerName} registrations from all scopes before adding...");
             RemoveFromAllScopes(claudePath, projectDir, pathPrepend);
 
             // Now add the registration with the current transport mode
@@ -1052,7 +1052,7 @@ namespace MCPForUnity.Editor.Clients
             }
 
             // Remove from ALL scopes to ensure complete cleanup (#664)
-            McpLog.Info("Removing all UnityMCP registrations from all scopes...");
+            McpLog.Info($"Removing all {ProductInfo.McpServerName} registrations from all scopes...");
             RemoveFromAllScopes(claudePath, projectDir, pathPrepend);
 
             McpLog.Info("MCP server successfully unregistered from Claude Code.");
@@ -1076,11 +1076,11 @@ namespace MCPForUnity.Editor.Clients
                     headerArg = !string.IsNullOrEmpty(apiKey) ? $" --header \"{AuthConstants.ApiKeyHeader}: {SanitizeShellHeaderValue(apiKey)}\"" : "";
                 }
                 return "# Register the MCP server with Claude Code:\n" +
-                       $"claude mcp add --scope local --transport http UnityMCP {httpUrl}{headerArg}\n\n" +
+                       $"claude mcp add --scope local --transport http {ProductInfo.McpServerName} {httpUrl}{headerArg}\n\n" +
                        "# Unregister the MCP server (from all scopes to clean up any stale configs):\n" +
-                       "claude mcp remove --scope local UnityMCP\n" +
-                       "claude mcp remove --scope user UnityMCP\n" +
-                       "claude mcp remove --scope project UnityMCP\n\n" +
+                       $"claude mcp remove --scope local {ProductInfo.McpServerName}\n" +
+                       $"claude mcp remove --scope user {ProductInfo.McpServerName}\n" +
+                       $"claude mcp remove --scope project {ProductInfo.McpServerName}\n\n" +
                        "# List registered servers:\n" +
                        "claude mcp list";
             }
@@ -1094,11 +1094,11 @@ namespace MCPForUnity.Editor.Clients
             string fromArgs = AssetPathUtility.GetBetaServerFromArgs(quoteFromPath: true);
 
             return "# Register the MCP server with Claude Code:\n" +
-                   $"claude mcp add --scope local --transport stdio UnityMCP -- \"{uvxPath}\" {devFlags}{fromArgs} mcp-for-unity\n\n" +
+                   $"claude mcp add --scope local --transport stdio {ProductInfo.McpServerName} -- \"{uvxPath}\" {devFlags}{fromArgs} mcp-for-unity\n\n" +
                    "# Unregister the MCP server (from all scopes to clean up any stale configs):\n" +
-                   "claude mcp remove --scope local UnityMCP\n" +
-                   "claude mcp remove --scope user UnityMCP\n" +
-                   "claude mcp remove --scope project UnityMCP\n\n" +
+                   $"claude mcp remove --scope local {ProductInfo.McpServerName}\n" +
+                   $"claude mcp remove --scope user {ProductInfo.McpServerName}\n" +
+                   $"claude mcp remove --scope project {ProductInfo.McpServerName}\n\n" +
                    "# List registered servers:\n" +
                    "claude mcp list";
         }
@@ -1106,7 +1106,7 @@ namespace MCPForUnity.Editor.Clients
         public override IList<string> GetInstallationSteps() => new List<string>
         {
             "Ensure Claude CLI is installed",
-            "Use Configure to add UnityMCP (or run claude mcp add UnityMCP)",
+            $"Use Configure to add {ProductInfo.McpServerName} (or run claude mcp add {ProductInfo.McpServerName})",
             "Restart Claude Code"
         };
 
@@ -1122,7 +1122,7 @@ namespace MCPForUnity.Editor.Clients
             // See GitHub issue #664 - conflicting configs at different scopes can cause
             // Claude Code to connect with outdated/incorrect configuration.
             string[] scopes = { "local", "user", "project" };
-            string[] names = { "UnityMCP", "unityMCP" }; // Include legacy naming
+            string[] names = { ProductInfo.McpServerName };
 
             foreach (var scope in scopes)
             {
@@ -1183,7 +1183,7 @@ namespace MCPForUnity.Editor.Clients
                     var toRemove = new List<string>();
                     foreach (var server in mcpServers.Properties())
                     {
-                        if (string.Equals(server.Name, "UnityMCP", StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(server.Name, ProductInfo.McpServerName, StringComparison.OrdinalIgnoreCase))
                         {
                             toRemove.Add(server.Name);
                         }
@@ -1335,7 +1335,7 @@ namespace MCPForUnity.Editor.Clients
 
                 foreach (var server in mcpServers.Properties())
                 {
-                    if (string.Equals(server.Name, "UnityMCP", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(server.Name, ProductInfo.McpServerName, StringComparison.OrdinalIgnoreCase))
                     {
                         return (server.Value as JObject, null);
                     }
@@ -1435,7 +1435,7 @@ namespace MCPForUnity.Editor.Clients
                     {
                         foreach (var server in mcpServers.Properties())
                         {
-                            if (string.Equals(server.Name, "UnityMCP", StringComparison.OrdinalIgnoreCase))
+                            if (string.Equals(server.Name, ProductInfo.McpServerName, StringComparison.OrdinalIgnoreCase))
                             {
                                 return server.Value as JObject;
                             }
@@ -1486,7 +1486,7 @@ namespace MCPForUnity.Editor.Clients
             if (!(projectConfig?["mcpServers"] is JObject servers)) return 0;
             foreach (var server in servers.Properties())
             {
-                if (string.Equals(server.Name, "UnityMCP", StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(server.Name, ProductInfo.McpServerName, StringComparison.OrdinalIgnoreCase))
                     return 2;
             }
             return servers.HasValues ? 1 : 0;

@@ -55,22 +55,20 @@ Other changes:
 1. **Add the Unity package.** In Unity, open **Window → Package Manager → + → Add package from git URL** and enter:
 
    ```
-   https://github.com/Talhasarac/unity-mcp-light.git?path=/MCPForUnity#beta
+   https://github.com/Talhasarac/unity-mcp-light.git?path=/MCPForUnity#main
    ```
 
-   The package keeps the upstream name (`com.coplaydev.unity-mcp`), so remove the upstream package first if you have it installed.
+   The package keeps the upstream package id (`com.coplaydev.unity-mcp`), so remove the upstream package first if you have it installed.
 
-2. **Point Unity at this fork's server.** By default the package downloads the *upstream* Python server from PyPI, which still includes every tool. Open **Window → Unity MCP Light → Advanced** and set **Server Source** to:
+2. **Configure your client.** Open **Window → Unity MCP Light**, and on the **Connect** tab choose **Configure All Detected Clients** (or configure one client), then restart your MCP client.
 
-   ```
-   git+https://github.com/Talhasarac/unity-mcp-light@beta#subdirectory=Server
-   ```
+   Clients are registered under the server name **`unity-mcp-light`** (for example `claude mcp add ... unity-mcp-light` in Claude Code, `[mcp_servers.unity-mcp-light]` in Codex). The Python server is fetched from this repository's `Server/` folder on `main`, not from PyPI, so you get this fork's trimmed tool set without extra setup.
 
-   You can also point it at a local clone's `Server` folder.
-
-3. **Configure your client.** On the **Connect** tab, choose **Configure All Detected Clients**, then restart your MCP client.
+3. **Install the skill (optional).** **Install Skills** on the Connect tab copies the agent skill to `~/.claude/skills/unity-mcp-light` (Claude Code) or `~/.codex/skills/unity-mcp-light` (Codex).
 
 4. **Try it.** Ask: *"Create a cube at the origin and add a Rigidbody."*
+
+To run the server from a local clone instead, set **Advanced → Server Source** to your clone's `Server` folder.
 
 ## Keeping context small
 

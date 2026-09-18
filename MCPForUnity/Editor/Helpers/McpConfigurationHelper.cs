@@ -71,7 +71,7 @@ namespace MCPForUnity.Editor.Helpers
                 // If user has partial/invalid JSON (e.g., mid-edit), start from a fresh object
                 if (!string.IsNullOrWhiteSpace(existingJson))
                 {
-                    McpLog.Warn("UnityMCP: Configuration file could not be parsed; rewriting server block.");
+                    McpLog.Warn($"{ProductInfo.McpServerName}: Configuration file could not be parsed; rewriting server block.");
                 }
                 existingConfig = new JObject();
             }
@@ -84,13 +84,13 @@ namespace MCPForUnity.Editor.Helpers
             {
                 if (isVSCode)
                 {
-                    existingCommand = existingConfig?.servers?.unityMCP?.command?.ToString();
-                    existingArgs = existingConfig?.servers?.unityMCP?.args?.ToObject<string[]>();
+                    existingCommand = existingConfig?["servers"]?[ProductInfo.McpServerName]?["command"]?.ToString();
+                    existingArgs = existingConfig?["servers"]?[ProductInfo.McpServerName]?["args"]?.ToObject<string[]>();
                 }
                 else
                 {
-                    existingCommand = existingConfig?.mcpServers?.unityMCP?.command?.ToString();
-                    existingArgs = existingConfig?.mcpServers?.unityMCP?.args?.ToObject<string[]>();
+                    existingCommand = existingConfig?["mcpServers"]?[ProductInfo.McpServerName]?["command"]?.ToString();
+                    existingArgs = existingConfig?["mcpServers"]?[ProductInfo.McpServerName]?["args"]?.ToObject<string[]>();
                 }
             }
             catch { }
@@ -137,7 +137,7 @@ namespace MCPForUnity.Editor.Helpers
                 }
                 catch (Exception e)
                 {
-                    McpLog.Warn($"UnityMCP: Failed to read Codex config '{configPath}': {e.Message}");
+                    McpLog.Warn($"{ProductInfo.McpServerName}: Failed to read Codex config '{configPath}': {e.Message}");
                     existingToml = string.Empty;
                 }
             }

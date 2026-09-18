@@ -21,8 +21,8 @@ namespace MCPForUnity.Editor.Services
         private const string CachedBetaVersionKey = EditorPrefKeys.LatestKnownVersion + ".beta";
         private const string LastAssetStoreCheckDateKey = EditorPrefKeys.LastAssetStoreUpdateCheck;
         private const string CachedAssetStoreVersionKey = EditorPrefKeys.LatestKnownAssetStoreVersion;
-        private const string MainPackageJsonUrl = "https://raw.githubusercontent.com/CoplayDev/unity-mcp/main/MCPForUnity/package.json";
-        private const string BetaPackageJsonUrl = "https://raw.githubusercontent.com/CoplayDev/unity-mcp/beta/MCPForUnity/package.json";
+        private const string MainPackageJsonUrl = "https://raw.githubusercontent.com/Talhasarac/unity-mcp-light/main/MCPForUnity/package.json";
+        private const string BetaPackageJsonUrl = "https://raw.githubusercontent.com/Talhasarac/unity-mcp-light/beta/MCPForUnity/package.json";
         private const string AssetStoreVersionUrl = "https://gqoqjkkptwfbkwyssmnj.supabase.co/storage/v1/object/public/coplay-images/assetstoreversion.json";
 
         /// <inheritdoc/>
