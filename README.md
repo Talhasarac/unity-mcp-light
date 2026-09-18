@@ -53,7 +53,7 @@ Other changes:
 1. **Add the Unity package.** In Unity, open **Window → Package Manager → + → Add package from git URL** and enter:
 
    ```
-   https://github.com/Talhasarac/unity-mcp-light.git?path=/MCPForUnity#main
+   https://github.com/Talhasarac/unity-mcp-light.git?path=/MCPForUnity#beta
    ```
 
    The package keeps the upstream name (`com.coplaydev.unity-mcp`), so remove the upstream package first if you have it installed.
@@ -61,7 +61,7 @@ Other changes:
 2. **Point Unity at this fork's server.** By default the package downloads the *upstream* Python server from PyPI, which still includes every tool. Open **Window → MCP for Unity → Advanced** and set **Server Source** to:
 
    ```
-   git+https://github.com/Talhasarac/unity-mcp-light@main#subdirectory=Server
+   git+https://github.com/Talhasarac/unity-mcp-light@beta#subdirectory=Server
    ```
 
    You can also point it at a local clone's `Server` folder.
