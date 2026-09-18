@@ -5,85 +5,93 @@
   </picture>
 </p>
 
-<div align="center">
-
-[English](README.md) <img src="docs/images/connector.svg" alt="↔" height="14"> [简体中文](docs/i18n/README-zh.md) &nbsp;&nbsp;&nbsp;|&nbsp;&nbsp;&nbsp; [Discord](https://discord.gg/y4p8KfzrN4) <img src="docs/images/connector.svg" alt="↔" height="14"> [Wiki](https://coplaydev.github.io/unity-mcp/)
-
-#### Proudly sponsored and maintained by [Aura](https://www.tryaura.dev/) — the AI assistant for Unreal & Unity.
-##### And don't miss [Godot AI](https://github.com/hi-godot/godot-ai), the new open source project from the makers of MCP for Unity.
-
-</div>
-
-<p align="center"><b>Create your Unity apps with LLMs.</b> MCP for Unity bridges AI assistants — Claude, Codex, VS Code, local LLMs, and more — with your Unity Editor via <a href="https://modelcontextprotocol.io/introduction">Model Context Protocol</a>. Give your LLM the tools to manage assets, control scenes, edit scripts, run tests, and automate your game dev workflows.</p>
+<h1 align="center">Unity MCP Light</h1>
 
 <p align="center">
-  <img alt="MCP for Unity building a scene" src="docs/images/building_scene.gif">
+  A slimmed-down fork of <a href="https://github.com/CoplayDev/unity-mcp">MCP for Unity</a> that spends less of your AI's context window on tool definitions.
 </p>
 
 ---
 
-<!-- recent-updates:start -->
-<details>
-<summary><strong>Recent Updates</strong></summary>
+## Why this fork
 
-* **[v10.0.0](https://github.com/CoplayDev/unity-mcp/releases/tag/v10.0.0)** (2026-06-30)
-* **[v9.7.3](https://github.com/CoplayDev/unity-mcp/releases/tag/v9.7.3)** (2026-06-15)
-* **[v9.7.1](https://github.com/CoplayDev/unity-mcp/releases/tag/v9.7.1)** (2026-05-24)
-* **[v9.7.0](https://github.com/CoplayDev/unity-mcp/releases/tag/v9.7.0)** (2026-05-22)
-* **[v9.6.8](https://github.com/CoplayDev/unity-mcp/releases/tag/v9.6.8)** (2026-04-27)
+Every MCP tool a server exposes has a name, a description and a parameter schema, and many clients send all of them to the model before you type a word. The upstream MCP for Unity ships 48 tools, about **29k tokens** of definitions. That context is paid on every conversation, whether or not you ever touch ProBuilder or the Profiler.
 
-Full history: [Release Notes](https://coplaydev.github.io/unity-mcp/releases).
+This fork removes tools that most Unity workflows don't need:
 
-</details>
-<!-- recent-updates:end -->
+| | Upstream | Light |
+|---|---|---|
+| Tools | 48 | **38** |
+| Tool definitions (approx. tokens) | ~28.9k | **~23.6k** |
 
----
+Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, camera, graphics, physics, packages, builds, tests, UI Toolkit, animation, docs lookup — works the same as upstream.
 
-## What it does
+## What was removed
 
-Control the Unity Editor in natural language from any MCP client — create scenes & GameObjects, edit C# scripts, manage assets, run tests, profile, and build. 47 focused MCP tool entrypoints, any client, free & MIT.
+| Tool | What it did |
+|---|---|
+| `generate_image`, `generate_model`, `generate_audio` | AI asset generation through third-party providers |
+| `manage_probuilder` | ProBuilder mesh modeling |
+| `manage_profiler` | Profiler sessions, counters, memory snapshots, Frame Debugger |
+| `manage_shader` | Shader file create/read/update/delete |
+| `manage_texture` | Procedural texture generation |
+| `manage_vfx` | VFX Graph, particles, line and trail renderers |
+| `debug_request_context` | Server debugging helper |
+| `manage_script_capabilities` | Listed the supported script-edit operations |
 
-**[Browse the full tool catalog →](https://coplaydev.github.io/unity-mcp/reference/tools/)**
+`import_model` (Sketchfab) and `import_model_file` (local `.fbx`/`.obj`/`.glb`/`.gltf`) are **kept**.
 
----
+Each removed tool is gone from the Python server, the Unity handlers, the CLI, the tests and the bundled `unity-mcp-skill` docs, so nothing still describes a tool that no longer exists.
 
-## Quickstart
+Other changes:
+- `get_test_job` now recommends a `wait_timeout` of 15–30 seconds instead of 30–60.
 
-**Requirements:** Unity **2021.3 LTS → 6.x** · Python **3.10+** (via [`uv`](https://docs.astral.sh/uv/)). Works with **any MCP client** — Claude Desktop & Code, Cursor, VS Code, Windsurf, Cline, Gemini CLI, and more.
+## Install
 
-1. **Install** — Unity → Package Manager → Add from git URL:
-   `https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main` &nbsp;_(pin `#v10.0.0` for this release, or `openupm add com.coplaydev.unity-mcp`)_
-2. **Configure** — `Window → MCP for Unity → Configure All Detected Clients`.
-3. **Prompt** — *"Create a cube at the origin and add a Rigidbody."* The cube appears in seconds.
+**Requirements:** Unity 2021.3 LTS – 6.x, Python 3.10+ and [`uv`](https://docs.astral.sh/uv/). Works with any MCP client (Claude Code, Claude Desktop, Cursor, VS Code, Windsurf, Cline, Gemini CLI and others).
 
----
+1. **Add the Unity package.** In Unity, open **Window → Package Manager → + → Add package from git URL** and enter:
 
-## Community
+   ```
+   https://github.com/Talhasarac/unity-mcp-light.git?path=/MCPForUnity#main
+   ```
 
-- [Discord](https://discord.gg/y4p8KfzrN4) — chat with maintainers and other contributors
-- [Issues](https://github.com/CoplayDev/unity-mcp/issues) — bugs and feature requests
-- [Discussions](https://github.com/CoplayDev/unity-mcp/discussions) — design ideas and broader questions
-- Security: see [SECURITY.md](SECURITY.md) for private reporting
+   The package keeps the upstream name (`com.coplaydev.unity-mcp`), so remove the upstream package first if you have it installed.
 
-## Contributing
+2. **Point Unity at this fork's server.** By default the package downloads the *upstream* Python server from PyPI, which still includes every tool. Open **Window → MCP for Unity → Advanced** and set **Server Source** to:
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Branch off `beta`, not `main`. The full dev setup, testing, and release process live in the [Contributing](https://coplaydev.github.io/unity-mcp/contributing/dev-setup) docs.
+   ```
+   git+https://github.com/Talhasarac/unity-mcp-light@main#subdirectory=Server
+   ```
 
-## Advanced
+   You can also point it at a local clone's `Server` folder.
 
-- **Multiple Unity instances** — [Multi-Instance Routing](https://coplaydev.github.io/unity-mcp/guides/multi-instance)
-- **Tool groups (vfx / animation / ui / testing / etc.)** — [Tool Groups](https://coplaydev.github.io/unity-mcp/guides/tool-groups)
-- **v10 asset generation and upgrade notes** — [v10 Migration](https://coplaydev.github.io/unity-mcp/migrations/v10)
-- **Roslyn script validation** — [Roslyn Validation](https://coplaydev.github.io/unity-mcp/guides/roslyn)
-- **Remote-hosted server with auth** — [Remote Server Auth](https://coplaydev.github.io/unity-mcp/guides/remote-server-auth)
+3. **Configure your client.** On the **Connect** tab, choose **Configure All Detected Clients**, then restart your MCP client.
 
-## Star History
+4. **Try it.** Ask: *"Create a cube at the origin and add a Rigidbody."*
 
-[![Star History Chart](https://star-history.dera.page/svg?repos=CoplayDev/unity-mcp&type=Date)](https://star-history.dera.page/#CoplayDev/unity-mcp&Date)
+## Keeping context small
 
-## Citation
+- **Tool groups.** Tools are grouped (`core`, `animation`, `ui`, `testing`, `docs`, `scripting_ext`, `asset_gen`). Only `core` is on by default over HTTP; turn the others on when you need them with `manage_tools`, or on the **Tools** tab in Unity.
+- **Clients with tool search** (such as Claude Code) load tool definitions only when needed, so the savings here matter most for clients that load every definition up front.
+- **The skill.** `unity-mcp-skill/` gives agents usage guidance. It is large; install it only if your agent benefits from it.
 
-If MCP for Unity helped your research, please cite it.
+## Development
+
+The server lives in `Server/`, and the Unity package lives in `MCPForUnity/`.
+
+```bash
+cd Server
+uv run --extra dev pytest -q
+```
+
+To measure how many tokens the tool definitions cost, list the tools through FastMCP and count the characters of each serialized definition (roughly 4 characters per token).
+
+## Credits
+
+This is a fork of [MCP for Unity](https://github.com/CoplayDev/unity-mcp) by [Coplay](https://github.com/CoplayDev) and its contributors. All the real work is theirs; this fork only trims it. For the full feature set, documentation and community, use the upstream project.
+
+If MCP for Unity helped your research, please cite the original work:
 
 ```bibtex
 @inproceedings{wu2025mcpunity,
@@ -99,16 +107,6 @@ If MCP for Unity helped your research, please cite it.
 }
 ```
 
-## Unity AI Tools by Aura
-
-Aura offers 2 AI tools for Unity:
-- **MCP for Unity** is available freely under the MIT license.
-- **Aura for Unity** is a premium Unity/Unreal AI assistant built for game devs.
-
-## Disclaimer
-
-This project is a free and open-source tool for the Unity Editor, and is not affiliated with Unity Technologies.
-
----
+Not affiliated with Unity Technologies.
 
 **License:** MIT — see [LICENSE](LICENSE).
