@@ -22,7 +22,7 @@ TOOL_GROUPS: dict[str, str] = {
     "ui": "UI Toolkit (UXML, USS, UIDocument)",
     "scripting_ext": "ScriptableObject management",
     "testing": "Test runner & async test jobs",
-    "asset_gen": "Local 3D model file import (.fbx/.obj/.glb/.gltf/.zip)",
+    "asset_gen": "Local 3D model file import and Blender Bridge",
 }
 
 DEFAULT_ENABLED_GROUPS: set[str] = {"core"}

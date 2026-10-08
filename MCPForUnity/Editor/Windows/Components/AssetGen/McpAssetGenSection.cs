@@ -29,6 +29,7 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
         private Toggle autoNormalizeToggle;
         private Button refreshButton;
         private Label refreshStatusLabel;
+        private McpBlenderBridgePanel blenderPanel;
 
         // Per-provider enable toggles for the GLB-capable (model) providers, used to
         // recompute the glTFast notice when a toggle changes.
@@ -53,6 +54,8 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
             autoNormalizeToggle = Root.Q<Toggle>("assetgen-auto-normalize");
             refreshButton = Root.Q<Button>("assetgen-refresh");
             refreshStatusLabel = Root.Q<Label>("assetgen-refresh-status");
+            var blenderRoot = Root.Q<VisualElement>("blender-bridge-panel");
+            if (blenderRoot != null) blenderPanel = new McpBlenderBridgePanel(blenderRoot);
         }
 
         private void InitializeUI()
@@ -131,7 +134,11 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
         /// Re-reads secure-store presence and prefs and rebuilds the rows. Called when the
         /// tab becomes visible so keys set elsewhere (e.g. via CLI) are reflected.
         /// </summary>
-        public void Refresh() => SyncFromPrefs();
+        public void Refresh()
+        {
+            SyncFromPrefs();
+            blenderPanel?.Refresh();
+        }
 
         /// <summary>Rebuild the provider rows and reflect current prefs into the fields.</summary>
         private void SyncFromPrefs()
@@ -152,8 +159,6 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
 
             providersContainer.Clear();
             modelEnableToggles.Clear();
-
-            AddBlenderHandoffRow();
         }
 
         /// <summary>
@@ -188,35 +193,6 @@ namespace MCPForUnity.Editor.Windows.Components.AssetGen
             var label = new Label(text);
             label.AddToClassList("config-label");
             providersContainer.Add(label);
-        }
-
-        /// <summary>
-        /// Informational handoff row (not a keyed provider): best-effort "is Blender installed"
-        /// status + a pointer to the blender-to-unity workflow. BlenderMCP itself runs in the AI
-        /// client and isn't detectable from Unity, so this only reports the local Blender app.
-        /// </summary>
-        private void AddBlenderHandoffRow()
-        {
-            AddGroupLabel("Blender → Unity Handoff");
-
-            var row = new VisualElement();
-            row.style.marginBottom = 8;
-
-            bool blender = BlenderDetection.IsInstalled();
-            var status = new Label(blender ? "Blender app detected ✓" : "Blender app not found on this machine");
-            status.AddToClassList("help-text");
-            status.style.color = blender ? new Color(0.4f, 0.8f, 0.4f) : new Color(0.7f, 0.7f, 0.7f);
-            row.Add(status);
-
-            var help = new Label(
-                "Pair Blender with the BlenderMCP server in your AI client, then run the blender-to-unity " +
-                "skill to export the current model — it imports via the import_model_file tool. (BlenderMCP " +
-                "is configured in your AI client and can't be detected here.)");
-            help.AddToClassList("help-text");
-            help.style.whiteSpace = WhiteSpace.Normal;
-            row.Add(help);
-
-            providersContainer.Add(row);
         }
 
         private Toggle AddProviderRow(VisualElement parent, string id, string displayName, string kind)

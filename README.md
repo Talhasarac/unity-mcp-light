@@ -11,25 +11,29 @@
 
 ---
 
+Based on upstream **v10.3.0**. This update keeps Light’s reduced tool set and adds the local **Blender Bridge**, Unity 6.6 compatibility fixes, improved test recovery after domain reloads, and Pi / Trae CN client support.
+
 ## Why this fork
 
-Every MCP tool a server exposes has a name, a description and a parameter schema, and many clients send all of them to the model before you type a word. The upstream MCP for Unity ships 48 tools, about **29k tokens** of definitions. That context is paid on every conversation, whether or not you ever touch ProBuilder or the Profiler.
+Every MCP tool a server exposes has a name, a description and a parameter schema, and many clients send all of them to the model before you type a word. The upstream MCP for Unity 10.3.0 ships 49 tools, about **30k tokens** of definitions. That context is paid on every conversation, whether or not you ever touch ProBuilder or the Profiler.
 
 This fork removes tools that most Unity workflows don't need and trims the definitions of the ones that remain:
 
 | | Upstream | Light |
 |---|---|---|
-| Tools | 48 | **37** |
-| Tool definitions (approx. tokens) | ~28.9k | **~19.2k** |
-| Skill: `SKILL.md`, loaded when the skill triggers (approx. tokens) | ~3.6k | **~3.8k** |
-| Skill: reference docs, read on demand (approx. tokens) | ~41.2k (4 files) | **~32.5k** (3 files) |
-| Skill total (approx. tokens) | ~44.8k | **~36.3k** |
+| Tools | 49 | **38** |
+| Tool definitions (approx. tokens) | ~30.5k | **~20.2k** |
+| Skill: `SKILL.md`, loaded when the skill triggers (approx. tokens) | ~3.8k | **~4.0k** |
+| Skill: reference docs, read on demand (approx. tokens) | ~41.2k (4 files) | **~32.7k** (3 files) |
+| Skill total (approx. tokens) | ~45.0k | **~36.8k** |
 
 The skill drops the ProBuilder guide and every section about removed tools, and adds a short guide to `inspect_prefab`. Token counts are characters ÷ 4.
 
 Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, shaders, procedural textures, camera, graphics, physics, builds, tests, UI Toolkit, API reflection — works the same as upstream.
 
 ## What was added
+
+`blender_bridge` connects Unity directly to a running BlenderMCP addon. It inspects Blender objects, imports selections or scenes, captures screenshots, and provides addon diagnostics. It belongs to the optional `asset_gen` group and has settings on the **Generative** tab. Blender must already be running with its addon connected.
 
 **`inspect_prefab`**: a read-only prefab inspector (about 460 tokens of definition) that answers in compact, indented text under a character budget instead of JSON. It never opens a Prefab Stage, marks anything dirty or saves.
 

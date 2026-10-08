@@ -1315,3 +1315,15 @@ unity_reflect(action="get_type", class_name="UnityEngine.AI.NavMeshAgent")
 unity_reflect(action="get_member", class_name="Physics", member_name="Raycast")
 unity_reflect(action="get_member", class_name="NavMeshAgent", member_name="SetDestination")
 ```
+
+## Blender Bridge (`blender_bridge`)
+
+Optional `asset_gen` group. Connects through Unity to an already-running BlenderMCP addon socket; configure host/port on the Generative tab.
+
+- Inspect: `action="status"`, `scene_info`, `object_info` (`object_name`).
+- Import: `action="import_model"`, `selection_only=true`, `format="glb"` or `"fbx"`; optional `object_names`, `name`, `output_folder`, `target_size`, `position`, `save_prefab`. GLB needs glTFast. FBX animation needs `animation_type`.
+- Capture: `action="screenshot"` or `compare_screenshot` (`game_object`).
+- Execute Blender Python: `action="run_python"`, `code="..."`.
+- Diagnose addon checkout: `action="check_updates"`; `sync_addon` copies the configured checkout’s addon.py into Blender’s addons directory.
+
+Imports use the local model pipeline. The bridge does not restore the removed paid asset-generation tools.

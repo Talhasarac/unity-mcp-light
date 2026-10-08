@@ -1,19 +1,19 @@
 {
   "manifest_version": "0.3",
-  "name": "Unity MCP",
-  "version": "10.2.0",
-  "description": "AI-powered Unity Editor automation via MCP - manage GameObjects, scripts, materials, scenes, prefabs, VFX, and run tests",
+  "name": "Unity MCP Light",
+  "version": "10.3.0",
+  "description": "Unity Editor automation with compact tool schemas, read-only prefab inspection, and local Blender Bridge",
   "author": {
     "name": "Coplay",
     "url": "https://www.coplay.dev"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/CoplayDev/unity-mcp"
+    "url": "https://github.com/Talhasarac/unity-mcp-light"
   },
   "homepage": "https://www.coplay.dev",
-  "documentation": "https://github.com/CoplayDev/unity-mcp#readme",
-  "support": "https://github.com/CoplayDev/unity-mcp/issues",
+  "documentation": "https://github.com/Talhasarac/unity-mcp-light#readme",
+  "support": "https://github.com/Talhasarac/unity-mcp-light/issues",
   "icon": "coplay-logo.png",
   "server": {
     "type": "python",
@@ -22,7 +22,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "mcpforunityserver",
+        "git+https://github.com/Talhasarac/unity-mcp-light.git@main#subdirectory=Server",
         "mcp-for-unity"
       ],
       "env": {}
@@ -176,6 +176,10 @@
     {
       "name": "validate_script",
       "description": "Validate C# script syntax and compilation"
+    },
+    {
+      "name": "blender_bridge",
+      "description": "Inspect and import models from a running BlenderMCP addon"
     }
   ]
 }
