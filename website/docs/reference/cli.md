@@ -57,24 +57,18 @@ The CLI mirrors the MCP tool catalog. Each command group wraps one or more `mana
 | `mcp-for-unity prefab` | Prefab create/instantiate/unpack | [`manage_prefabs`](/reference/tools/core/manage_prefabs) |
 | `mcp-for-unity texture` | Texture create + patterns/gradients | [`manage_texture`](/reference/tools/vfx/manage_texture) |
 | `mcp-for-unity shader` | Shader CRUD | [`manage_shader`](/reference/tools/vfx/manage_shader) |
-| `mcp-for-unity vfx` | VFX, particle systems, trails | [`manage_vfx`](/reference/tools/vfx/manage_vfx) |
 | `mcp-for-unity camera` | Camera + Cinemachine presets | [`manage_camera`](/reference/tools/core/manage_camera) |
 | `mcp-for-unity graphics` | Volumes, post-processing, light bake | [`manage_graphics`](/reference/tools/core/manage_graphics) |
 | `mcp-for-unity lighting` | Lighting-specific operations | (subset of graphics) |
 | `mcp-for-unity physics` | 3D + 2D physics, joints, queries | [`manage_physics`](/reference/tools/core/manage_physics) |
 | `mcp-for-unity audio` | Audio operations | (subset of asset) |
-| `mcp-for-unity animation` | Animator + AnimationClip | [`manage_animation`](/reference/tools/animation/manage_animation) |
 | `mcp-for-unity ui` | UI Toolkit — UXML/USS/UIDocument | [`manage_ui`](/reference/tools/ui/manage_ui) |
 | `mcp-for-unity build` | Player builds across platforms | [`manage_build`](/reference/tools/core/manage_build) |
 | `mcp-for-unity editor` | Editor state, play mode, undo/redo | [`manage_editor`](/reference/tools/core/manage_editor) |
-| `mcp-for-unity packages` | UPM install/remove/embed | [`manage_packages`](/reference/tools/core/manage_packages) |
-| `mcp-for-unity probuilder` | ProBuilder meshes | [`manage_probuilder`](/reference/tools/probuilder/manage_probuilder) |
-| `mcp-for-unity profiler` | Profiler session + counters + snapshots | [`manage_profiler`](/reference/tools/profiling/manage_profiler) |
 | `mcp-for-unity code` | Execute arbitrary C# in the Editor | [`execute_code`](/reference/tools/scripting_ext/execute_code) |
 | `mcp-for-unity batch` | Run multiple operations atomically | [`batch_execute`](/reference/tools/core/batch_execute) |
 | `mcp-for-unity tool` | Activate/deactivate tool groups | [`manage_tools`](/reference/tools/core/manage_tools) |
 | `mcp-for-unity reflect` | Inspect Unity APIs via reflection | [`unity_reflect`](/reference/tools/docs/unity_reflect) |
-| `mcp-for-unity docs` | Fetch Unity docs (ScriptReference, Manual) | [`unity_docs`](/reference/tools/docs/unity_docs) |
 
 ## Discovering subcommands and flags
 
