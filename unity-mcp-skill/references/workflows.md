@@ -12,6 +12,7 @@ Common workflows and patterns for effective Unity-MCP usage.
 - [Debugging Workflows](#debugging-workflows)
 - [UI Creation Workflows](#ui-creation-workflows)
 - [Camera & Cinemachine Workflows](#camera--cinemachine-workflows)
+- [Animation Workflows](#animation-workflows)
 - [Graphics & Rendering Workflows](#graphics--rendering-workflows)
 - [Package Deployment Workflows](#package-deployment-workflows)
 - [API Verification Workflows](#api-verification-workflows)
@@ -1578,6 +1579,37 @@ manage_camera(action="screenshot", capture_source="scene_view",
 # Limitations: scene_view does not support batch, view_position, view_rotation, or camera selection.
 # Use capture_source="game_view" (default) for those features.
 ```
+
+---
+
+## Animation Workflows
+
+### Create a Preset Clip and Play It Through an Animator
+
+```python
+manage_tools(action="activate", group="animation")
+
+# Create a looping clip around the object's current local position.
+manage_animation(action="clip_create_preset", target="Product",
+                 clip_path="Assets/Animations/ProductHover.anim",
+                 properties={"preset": "hover", "duration": 2, "amplitude": 0.1, "loop": True})
+
+# Keep the clip compatible with Mecanim by adding it to a controller state.
+manage_animation(action="controller_create", controller_path="Assets/Animations/Product.controller")
+manage_animation(action="controller_add_state", controller_path="Assets/Animations/Product.controller",
+                 clip_path="Assets/Animations/ProductHover.anim",
+                 properties={"stateName": "Hover", "isDefault": True})
+manage_animation(action="controller_assign", target="Product",
+                 controller_path="Assets/Animations/Product.controller")
+manage_animation(action="controller_get_info", controller_path="Assets/Animations/Product.controller")
+
+# Playback and Animator state queries require Play mode.
+manage_editor(action="play")
+manage_animation(action="animator_play", target="Product", properties={"stateName": "Hover"})
+manage_animation(action="animator_get_info", target="Product")
+```
+
+Use unique asset paths or inspect existing clips/controllers before creation. For a character, inspect its existing controller and parameters before adding states or transitions. Add transition conditions through `properties.conditions` and layer/blend tree parameters through `properties`; see [animation tools](tools-reference.md#animation-tools). Use `manage_editor(action="stop")` when the requested preview is finished.
 
 ---
 

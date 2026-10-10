@@ -21,17 +21,19 @@ This fork removes tools that most Unity workflows don't need and trims the defin
 
 | | Upstream | Light |
 |---|---|---|
-| Tools | 49 | **38** |
-| Tool definitions (approx. tokens) | ~30.5k | **~20.2k** |
-| Skill: `SKILL.md`, loaded when the skill triggers (approx. tokens) | ~3.8k | **~4.0k** |
-| Skill: reference docs, read on demand (approx. tokens) | ~41.2k (4 files) | **~32.7k** (3 files) |
-| Skill total (approx. tokens) | ~45.0k | **~36.8k** |
+| Tools | 49 | **39** |
+| Tool definitions (approx. tokens) | ~30.5k | **~20.6k** |
+| Skill: `SKILL.md`, loaded when the skill triggers (approx. tokens) | ~3.8k | **~4.1k** |
+| Skill: reference docs, read on demand (approx. tokens) | ~41.2k (4 files) | **~33.9k** (3 files) |
+| Skill total (approx. tokens) | ~45.0k | **~38.0k** |
 
 The skill drops the ProBuilder guide and every section about removed tools, and adds a short guide to `inspect_prefab`. Token counts are characters ÷ 4.
 
-Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, shaders, procedural textures, camera, graphics, physics, builds, tests, UI Toolkit, API reflection — works the same as upstream.
+Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, shaders, procedural textures, camera, graphics, physics, animation, builds, tests, UI Toolkit, API reflection — works the same as upstream.
 
 ## What was added
+
+`manage_animation` is restored in the optional `animation` group: Animator playback and parameters, AnimatorController states/transitions/layers/blend trees, and AnimationClip curves/events/presets. Enable it with `manage_tools(action="activate", group="animation")` or the **Animation** group on Unity’s **Tools** tab. The CLI also exposes `unity-mcp animation`.
 
 `blender_bridge` connects Unity directly to a running BlenderMCP addon. It inspects Blender objects, imports selections or scenes, captures screenshots, and provides addon diagnostics. It belongs to the optional `asset_gen` group and has settings on the **Generative** tab. Blender must already be running with its addon connected.
 
@@ -57,7 +59,6 @@ The normal path is `manage_prefabs get_info` → `inspect_prefab tree` → `node
 | `manage_probuilder` | ProBuilder mesh modeling |
 | `manage_profiler` | Profiler sessions, counters, memory snapshots, Frame Debugger |
 | `manage_vfx` | VFX Graph, particles, line and trail renderers |
-| `manage_animation` | Animator control and AnimationClip creation |
 | `manage_packages` | Package Manager install/remove/search |
 | `unity_docs` | Fetching docs from docs.unity3d.com |
 | `debug_request_context` | Server debugging helper |
@@ -96,7 +97,7 @@ To run the server from a local clone instead, set **Advanced → Server Source**
 
 ## Keeping context small
 
-- **Tool groups.** Tools are grouped (`core`, `vfx`, `ui`, `testing`, `docs`, `scripting_ext`, `asset_gen`). Only `core` is on by default over HTTP; turn the others on when you need them with `manage_tools`, or on the **Tools** tab in Unity. The `vfx` group now holds only `manage_shader` and `manage_texture`.
+- **Tool groups.** Tools are grouped (`core`, `vfx`, `animation`, `ui`, `testing`, `docs`, `scripting_ext`, `asset_gen`). Only `core` is on by default over HTTP; turn the others on when you need them with `manage_tools`, or on the **Tools** tab in Unity. The `vfx` group now holds only `manage_shader` and `manage_texture`.
 - **Clients with tool search** (such as Claude Code) load tool definitions only when needed, so the savings here matter most for clients that load every definition up front.
 - **The skill.** `unity-mcp-skill/` gives agents usage guidance. It is large; install it only if your agent benefits from it.
 

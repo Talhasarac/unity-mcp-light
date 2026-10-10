@@ -19,6 +19,7 @@ TOOL_GROUPS: dict[str, str] = {
     "core": "Essential scene, script, asset & editor tools (always on by default)",
     "docs": "Unity API reflection",
     "vfx": "Shaders & procedural textures",
+    "animation": "Animator control, controllers & animation clips",
     "ui": "UI Toolkit (UXML, USS, UIDocument)",
     "scripting_ext": "ScriptableObject management",
     "testing": "Test runner & async test jobs",

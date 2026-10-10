@@ -12,6 +12,10 @@ description: Auto-generated catalog of every MCP for Unity tool, grouped by doma
 
 Every tool MCP for Unity exposes, generated directly from the Python `@mcp_for_unity_tool` registry under `Server/src/services/tools/`.
 
+## `animation` &nbsp; (1 tool)
+Animator control, controllers & animation clips
+- **[`manage_animation`](./animation/manage_animation.md)** — Manage Unity animation: Animator control and AnimationClip creation.
+
 ## `asset_gen` &nbsp; (2 tools)
 Local 3D model file import and Blender Bridge
 - **[`blender_bridge`](./asset_gen/blender_bridge.md)** — Bridge to a running Blender that has the BlenderMCP addon connected (socket, default 127.0.0.1:9876; configured in Window > MCP for Unity > Generative > Blender Bridge).

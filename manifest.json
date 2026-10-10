@@ -82,6 +82,10 @@
       "description": "Read-only prefab inspection in compact text: tree, fields, references, overrides, usages, problems"
     },
     {
+      "name": "manage_animation",
+      "description": "Manage Unity animation: Animator control, AnimatorController CRUD, and AnimationClip operations"
+    },
+    {
       "name": "manage_asset",
       "description": "Create, modify, search, and organize Unity assets"
     },

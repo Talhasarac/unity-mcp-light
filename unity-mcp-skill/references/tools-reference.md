@@ -17,6 +17,7 @@ Complete reference for all MCP tools. Each tool includes parameters, types, and 
 - [Testing Tools](#testing-tools)
 - [Camera Tools](#camera-tools)
 - [Graphics Tools](#graphics-tools)
+- [Animation Tools](#animation-tools)
 - [Physics Tools](#physics-tools)
 - [Docs Tools](#docs-tools)
 
@@ -1161,6 +1162,39 @@ manage_graphics(action="feature_reorder", order=[2, 0, 1])
 - `mcpforunity://scene/volumes` — Lists all Volume components in the scene with their profiles and effects
 - `mcpforunity://rendering/stats` — Current rendering performance counters
 - `mcpforunity://pipeline/renderer-features` — URP renderer features on the active renderer
+
+---
+
+## Animation Tools
+
+### manage_animation
+
+Enable the optional group with `manage_tools(action="activate", group="animation")` before calling the tool over HTTP. Use `manage_tools(action="list_groups")` to check visibility. Actions use one of three prefixes:
+
+| Prefix | Actions (append to prefix) |
+|---|---|
+| `animator_` | `get_info`, `get_parameter`, `play`, `crossfade`, `set_parameter`, `set_speed`, `set_enabled` |
+| `controller_` | `create`, `add_state`, `add_transition`, `add_parameter`, `get_info`, `assign`, `add_layer`, `remove_layer`, `set_layer_weight`, `create_blend_tree_1d`, `create_blend_tree_2d`, `add_blend_tree_child` |
+| `clip_` | `create`, `get_info`, `add_curve`, `set_curve`, `set_vector_curve`, `create_preset`, `assign`, `add_event`, `remove_event` |
+
+Pass `target` and optional `search_method` for scene objects; `clip_path` and `controller_path` are Assets-relative paths. Put action-specific keys in `properties` (a dict or JSON string); camelCase and supported snake_case aliases are accepted.
+
+```python
+manage_animation(action="animator_get_info", target="Player", search_method="by_name")
+manage_animation(action="animator_set_parameter", target="Player",
+                 properties={"parameterName": "Speed", "value": 1.5})
+manage_animation(action="animator_play", target="Player", properties={"stateName": "Walk"})
+manage_animation(action="clip_set_vector_curve", clip_path="Assets/Animations/Move.anim",
+                 properties={"property": "localPosition", "type": "Transform",
+                             "keys": [{"time": 0, "value": [0, 0, 0]},
+                                      {"time": 1, "value": [0, 2, 0]}]})
+```
+
+`clip_create_preset` accepts `preset`, `duration`, `amplitude`, `loop`, and optional `offset`. Presets: `bounce`, `rotate`, `pulse`, `fade`, `shake`, `hover`, `spin`, `sway`, `bob`, `wiggle`, `blink`, `slide_in`, `elastic`, `grow`, `shrink`. Supplying `target` uses its local position as the offset unless an explicit offset is given. Creation fails if the asset already exists.
+
+Animator reads and controls can resolve an Animator on a child; inspect the returned `animatorGameObject` when targeting a parent. `clip_assign` uses legacy Animation when the target has no Animator, converting the clip to legacy. For Mecanim clips, create a controller, add a state with the clip, and assign the controller instead. AnimationEvents require a component on the animated object with a matching receiver method.
+
+See [animation workflows](workflows.md#animation-workflows) for a complete controller setup. The CLI exposes `unity-mcp animation`, including `clip` and `controller` subcommands; use `--help` for action options.
 
 ---
 

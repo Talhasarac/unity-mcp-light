@@ -40,6 +40,7 @@ namespace MCPForUnity.Editor.Windows.Components.Tools
         {
             { "core", "Core Tools" },
             { "vfx", "Shaders & Textures" },
+            { "animation", "Animation" },
             { "ui", "UI Toolkit" },
             { "scripting_ext", "Scripting Extensions" },
             { "testing", "Testing" },
