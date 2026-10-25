@@ -72,6 +72,22 @@ def test_setup_failure_preserves_results_before_editor_teardown(tmp_path, monkey
     preparations = iter([True, False] if fail_on_relaunch else [False])
     monkeypatch.setattr(lh, "prepare_ci_scene", lambda *_: next(preparations))
 
+    # Keep the ownership handshake hermetic too: main acquires before scene
+    # setup and test execution, including after an Editor relaunch.
+    lh._ensure_src_on_path()
+    from transport.legacy import unity_connection
+    from transport.editor_sessions import current_agent
+    session_actions = []
+
+    def session_send(command, params, **kwargs):
+        assert command == "manage_editor_session"
+        assert kwargs["instance_id"] == "instance"
+        assert current_agent.get() is not None
+        session_actions.append(params["action"])
+        return {"success": True, "data": {"lease_id": f"lease-{len(session_actions)}"}}
+
+    monkeypatch.setattr(unity_connection, "send_command_with_retry", session_send)
+
     def passed_leg(name):
         return lh.LegOutcome(name, "pass", True, "passed", 0,
                              lh.JUnitSuite(name=name, cases=[lh.JUnitCase(name=f"{name}.passed")]))
@@ -89,3 +105,7 @@ def test_setup_failure_preserves_results_before_editor_teardown(tmp_path, monkey
     assert root.get("tests") == ("3" if fail_on_relaunch else "1")
     assert root.find(".//testcase[@name='setup.scene']/failure") is not None
     assert snapshots[-1], "reports must exist before the failing Editor is removed"
+    assert session_actions == (["acquire", "release", "acquire", "release",
+                                "acquire", "acquire", "release"] if fail_on_relaunch
+                               else ["acquire", "release"])
+    assert current_agent.get() is None
