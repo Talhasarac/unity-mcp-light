@@ -19,7 +19,8 @@ def test_upstream_sync_preserves_light_tools():
         "manage_probuilder", "manage_profiler", "manage_vfx",
         "manage_packages", "unity_docs", "debug_request_context", "manage_script_capabilities",
     })
-    assert len(names) == 39
+    assert "manage_editor_session" in names
+    assert len(names) == 40
 
 
 def test_animation_is_an_optional_registered_group():

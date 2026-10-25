@@ -310,6 +310,7 @@ namespace MCPForUnity.Editor.Services.Transport
                 return;
             }
 
+            bool ownsExecution = false;
             try
             {
                 var command = JsonConvert.DeserializeObject<Command>(commandText);
@@ -340,6 +341,16 @@ namespace MCPForUnity.Editor.Services.Transport
                 }
 
                 var parameters = command.@params ?? new JObject();
+                var identity = parameters[EditorSessionCoordinator.MetadataKey] as JObject;
+                parameters.Remove(EditorSessionCoordinator.MetadataKey);
+                EditorSessionCoordinator.Observe(identity, command.type);
+                if (command.type == "manage_editor_session")
+                {
+                    var sessionResult = EditorSessionCoordinator.Manage(identity, parameters);
+                    pending.TrySetResult(JsonConvert.SerializeObject(new { status = "success", result = sessionResult }));
+                    RemovePending(id, pending);
+                    return;
+                }
 
                 // Block execution of disabled resources
                 var resourceMeta = MCPServiceLocator.ResourceDiscovery.GetResourceMetadata(command.type);
@@ -362,8 +373,22 @@ namespace MCPForUnity.Editor.Services.Transport
                 }
 
                 var logType = resourceMeta != null ? "resource" : toolMeta != null ? "tool" : "unknown";
+                if (!EditorSessionCoordinator.IsDiagnostic(command.type, parameters, resourceMeta != null))
+                {
+                    var denied = EditorSessionCoordinator.Begin(identity, command.type);
+                    if (denied != null)
+                    {
+                        pending.TrySetResult(JsonConvert.SerializeObject(new { status = "success", result = denied }));
+                        RemovePending(id, pending);
+                        return;
+                    }
+                    ownsExecution = true;
+                }
                 var sw = McpLogRecord.IsEnabled ? System.Diagnostics.Stopwatch.StartNew() : null;
-                var result = CommandRegistry.ExecuteCommand(command.type, parameters, pending.CompletionSource);
+                // Cancellation only stops the caller waiting. The real handler may still be
+                // mutating Unity; keep its ownership until this independent completion fires.
+                var executionCompletion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var result = CommandRegistry.ExecuteCommand(command.type, parameters, executionCompletion);
 
                 if (result == null)
                 {
@@ -371,7 +396,9 @@ namespace MCPForUnity.Editor.Services.Transport
                     var capturedType = command.type;
                     var capturedParams = parameters;
                     var capturedLogType = logType;
-                    pending.CompletionSource.Task.ContinueWith(t =>
+                    bool releaseExecution = ownsExecution;
+                    ownsExecution = false;
+                    executionCompletion.Task.ContinueWith(t =>
                     {
                         sw?.Stop();
                         var logStatus = "SUCCESS";
@@ -396,7 +423,13 @@ namespace MCPForUnity.Editor.Services.Transport
                         }
                         McpLogRecord.Log(capturedType, capturedParams, capturedLogType,
                             logStatus, sw?.ElapsedMilliseconds ?? 0, logError);
-                        EditorApplication.delayCall += () => RemovePending(id, pending);
+                        _mainThreadContext.Post(_ =>
+                        {
+                            if (releaseExecution) EditorSessionCoordinator.End();
+                            if (t.IsCompletedSuccessfully) pending.TrySetResult(t.Result);
+                            else pending.TrySetResult(SerializeError(logError ?? "Command cancelled"));
+                            RemovePending(id, pending);
+                        }, null);
                     }, TaskScheduler.Default);
                     return;
                 }
@@ -421,6 +454,10 @@ namespace MCPForUnity.Editor.Services.Transport
                 McpLog.Error($"Error processing command: {ex.Message}\n{ex.StackTrace}");
                 pending.TrySetResult(SerializeError(ex.Message, "Unknown (error during processing)", ex.StackTrace));
                 RemovePending(id, pending);
+            }
+            finally
+            {
+                if (ownsExecution) EditorSessionCoordinator.End();
             }
         }
 

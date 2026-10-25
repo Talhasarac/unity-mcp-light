@@ -837,6 +837,8 @@ def send_command_with_retry(
     Uses config.reload_retry_ms and config.reload_max_retries by default. Preserves the
     structured failure if retries are exhausted.
     """
+    from transport.editor_sessions import command_params
+    params = command_params(params)
     t_retry_start = time.time()
     logger.info("[TIMING-STDIO] send_command_with_retry START command=%s", command_type)
     t_get_conn = time.time()
@@ -970,11 +972,13 @@ async def async_send_command_with_retry(
     """
     try:
         import asyncio  # local import to avoid mandatory asyncio dependency for sync callers
+        import contextvars
         if loop is None:
             loop = asyncio.get_running_loop()
+        request_context = contextvars.copy_context()
         result = await loop.run_in_executor(
             None,
-            lambda: send_command_with_retry(
+            lambda: request_context.run(send_command_with_retry,
                 command_type, params, instance_id=instance_id, max_retries=max_retries,
                 retry_ms=retry_ms, retry_on_reload=retry_on_reload),
         )

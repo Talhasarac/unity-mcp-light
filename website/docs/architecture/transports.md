@@ -14,7 +14,7 @@ MCP for Unity supports two transports between the MCP client and the Python serv
 
 | If you want… | Use |
 |---|---|
-| Multiple MCP clients sharing one Unity instance | **HTTP** |
+| Multiple MCP clients sharing one Unity instance | **HTTP** recommended; stdio also supports concurrent connections |
 | Multiple Unity instances driven from one client | either |
 | Lowest setup friction | **stdio** (Claude Desktop default) |
 | Remote-hosted server (cloud, Docker) | **HTTP** |
@@ -22,7 +22,7 @@ MCP for Unity supports two transports between the MCP client and the Python serv
 
 ## HTTP (default)
 
-**Architecture:** one Python process, one shared WebSocket hub at `/hub/plugin`, multiple MCP clients can connect concurrently. Each client gets a `client_id` and session-keyed state.
+**Architecture:** one Python process, one shared WebSocket hub at `/hub/plugin`, multiple MCP clients can connect concurrently. State and editor ownership use the actual MCP session ID, not a client name or peer-supplied `client_id`.
 
 **Endpoint:** `http://localhost:8080/mcp`
 
@@ -68,18 +68,23 @@ MCP for Unity supports two transports between the MCP client and the Python serv
 - Claude Desktop only supports stdio — that's why MCP for Unity silently selects stdio when configuring Claude Desktop, even if you have HTTP picked elsewhere
 
 **What you give up:**
-- Single-agent: a new MCP client connection replaces the previous one
-- No native session isolation: switching the active Unity instance in one client affects what the next client sees
+- Each client needs its own Python process; HTTP shares one server
+- Open TCP sockets are separate connections, while editor ownership is keyed to MCP sessions
 - Cannot host remotely
 
 ## What "instance" means in each mode
 
-- **HTTP**: instance state is keyed by `client_id` in middleware. Two clients can hold different active instances concurrently against the same Unity Editor pool.
+- **HTTP**: instance state is keyed by MCP session ID in middleware. Two clients can hold different active instances concurrently against the same Unity Editor pool.
 - **Stdio**: instance state is process-local. Since there's one Python process per client, isolation is implicit — but switching processes loses the old state.
 
 See [Multi-Instance Routing](/guides/multi-instance) for the routing API.
 
 ## Switching transport
+
+In either mode, acquire `manage_editor_session` before inspecting/editing a task and release
+after compilation and verification. Connection isolation does not isolate scene state.
+The Connect tab displays ownership, recent agent activity and bridge/socket connections.
+Update both the server and Unity package, restart clients and reinstall the skill when upgrading.
 
 In the Unity Editor: **Window → MCP for Unity → Settings**, pick `HTTP` or `stdio`, click **Configure All Detected Clients**. The configurator rewrites each client's MCP config to match.
 

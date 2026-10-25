@@ -98,8 +98,11 @@ click.Group.resolve_command = _resolve_command_with_suggestions  # type: ignore[
     is_flag=True,
     help="Enable verbose output."
 )
+@click.option("--agent-id", envvar="UNITY_MCP_AGENT_ID", default=None, help="Unique ID for this agent across CLI invocations.")
+@click.option("--lease-id", envvar="UNITY_MCP_LEASE_ID", default=None, help="Lease returned by session acquire.")
 @pass_context
-def cli(ctx: Context, host: str, port: int, timeout: int, format: str, instance: Optional[str], verbose: bool):
+def cli(ctx: Context, host: str, port: int, timeout: int, format: str, instance: Optional[str], verbose: bool,
+        agent_id: Optional[str] = None, lease_id: Optional[str] = None):
     """Unity MCP Command Line Interface.
 
     Control Unity Editor directly from the command line using the Model Context Protocol.
@@ -125,6 +128,8 @@ def cli(ctx: Context, host: str, port: int, timeout: int, format: str, instance:
         timeout=timeout,
         format=format,
         unity_instance=instance,
+        agent_id=agent_id,
+        lease_id=lease_id,
     )
 
     # Security warning for non-localhost connections
@@ -133,6 +138,29 @@ def cli(ctx: Context, host: str, port: int, timeout: int, format: str, instance:
     set_config(config)
     ctx.config = config
     ctx.verbose = verbose
+
+
+@cli.command("session")
+@click.argument("action", type=click.Choice(["status", "acquire", "renew", "release"]), default="status")
+@click.option("--name", "agent_name", default="CLI")
+@click.option("--task", default="")
+@click.option("--lease-seconds", default=300, type=click.IntRange(30, 900))
+@pass_context
+def session(ctx: Context, action: str, agent_name: str, task: str, lease_seconds: int):
+    """Manage editor ownership. Keep the acquired lease ID for subsequent commands."""
+    from models.unity_response import normalize_unity_response
+    cfg = ctx.config or get_config()
+    if action != "status" and not cfg.agent_id:
+        raise click.UsageError("Supply --agent-id or UNITY_MCP_AGENT_ID (unique per agent).")
+    try:
+        result = normalize_unity_response(run_command("manage_editor_session", {
+            "action": action, "agent_name": agent_name, "task": task, "lease_seconds": lease_seconds,
+        }, cfg))
+        click.echo(format_output(result, cfg.format))
+        if not result.get("success"):
+            raise click.exceptions.Exit(1)
+    except UnityConnectionError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 @cli.command("status")

@@ -22,6 +22,7 @@ namespace MCPForUnityTests.Editor.Services
     {
         private const int ConnectTimeoutMs = 5000;
         private const int ReadTimeoutMs = 10000;
+        private const string Request = "{\"type\":\"a\",\"params\":{\"_mcp_editor_session\":{\"id\":\"agent-a\",\"request_id\":\"request-1\"}}}";
 
         [Test]
         public void IsBrokerResend_SamePayloadFromAnotherConnection_IsAResend()
@@ -29,8 +30,16 @@ namespace MCPForUnityTests.Editor.Services
             object first = new object();
             object second = new object();
 
-            Assert.IsTrue(StdioBridgeHost.IsBrokerResend("{\"type\":\"a\"}", first, "{\"type\":\"a\"}", second),
-                "same payload arriving on a different connection is the resend signature");
+            Assert.IsTrue(StdioBridgeHost.IsBrokerResend(Request, first, Request, second),
+                "same session and request arriving on a different socket is a resend");
+        }
+
+        [Test]
+        public void IdenticalPayloadWithoutRequestIdentity_IsNotAResend()
+        {
+            Assert.IsFalse(StdioBridgeHost.IsBrokerResend("{\"type\":\"a\"}", new object(), "{\"type\":\"a\"}", new object()));
+            Assert.IsFalse(StdioBridgeHost.IsBrokerResend(Request, new object(), Request.Replace("agent-a", "agent-b"), new object()));
+            Assert.IsFalse(StdioBridgeHost.IsBrokerResend(Request, new object(), Request.Replace("request-1", "request-2"), new object()));
         }
 
         [Test]
@@ -77,7 +86,8 @@ namespace MCPForUnityTests.Editor.Services
             // MCP polls this same bridge while the test runs. Identify only our command,
             // so unrelated get_test_job traffic does not look like a duplicate resend.
             string commandJson = "{\"type\":\"read_console\",\"test_nonce\":\""
-                + Guid.NewGuid().ToString("N") + "\",\"params\":{\"action\":\"get\",\"count\":1}}";
+                + Guid.NewGuid().ToString("N") + "\",\"params\":{\"action\":\"get\",\"count\":1,\"_mcp_editor_session\":{\"id\":\"resend-test\",\"request_id\":\""
+                + Guid.NewGuid().ToString("N") + "\"}}}";
             byte[] command = Encoding.UTF8.GetBytes(commandJson);
 
             TcpClient first = null;
@@ -91,8 +101,7 @@ namespace MCPForUnityTests.Editor.Services
 
                 // Sleeping on the main thread lets the listener task read and queue the frame while
                 // ProcessCommands — an editor-update hook — cannot run and drain it. The wait also
-                // has to happen before the second connect: a new connection closes stale clients,
-                // and if it wins that race the first frame is never read at all.
+                // must happen before the resend so there is an in-flight request to attach to.
                 Thread.Sleep(1500);
                 queuedAfterFirst = CountQueuedPayload(commandJson);
 

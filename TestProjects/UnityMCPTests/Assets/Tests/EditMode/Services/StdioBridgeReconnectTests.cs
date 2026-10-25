@@ -82,7 +82,7 @@ namespace MCPForUnityTests.Editor.Services
         }
 
         [UnityTest]
-        public IEnumerator NewClient_WhileOldClientStillConnected_ClosesStaleClient()
+        public IEnumerator NewClient_WhileOldClientStillConnected_KeepsBothClientsUsable()
         {
             if (!StdioBridgeHost.IsRunning)
             {
@@ -120,33 +120,19 @@ namespace MCPForUnityTests.Editor.Services
                     string handshake2 = ReadLine(stream2, ReadTimeoutMs);
                     Assert.That(handshake2, Does.Contain("FRAMING=1"), "Second client should receive handshake");
 
-                    // Stale-client cleanup runs synchronously in HandleClientAsync before
-                    // the read loop, so by the time we read the handshake it's already done.
-                    // No yield needed — yielding here creates a window for the MCP Python
-                    // server to reconnect and close our test client as stale.
+                    // Both agents must retain their connections, including while idle.
                     SendFrame(stream2, Encoding.UTF8.GetBytes("ping"));
                     byte[] pong2Bytes = ReadFrame(stream2, ReadTimeoutMs);
                     Assert.That(Encoding.UTF8.GetString(pong2Bytes), Does.Contain("pong"),
-                        "Second client should get pong after stale client cleanup");
+                        "Second client should get pong while first remains connected");
 
                     client2.Close();
                 }
 
-                // First client should now be disconnected by the bridge.
-                // A read attempt should throw or return 0 bytes.
                 yield return null;
-                bool firstClientDisconnected = false;
-                try
-                {
-                    SendFrame(stream1, Encoding.UTF8.GetBytes("ping"));
-                    ReadFrame(stream1, 2000);
-                }
-                catch
-                {
-                    firstClientDisconnected = true;
-                }
-
-                Assert.IsTrue(firstClientDisconnected, "First client should be disconnected after second client connects");
+                SendFrame(stream1, Encoding.UTF8.GetBytes("ping"));
+                Assert.That(Encoding.UTF8.GetString(ReadFrame(stream1, 2000)), Does.Contain("pong"),
+                    "Connecting another agent must not disconnect the first");
             }
             finally
             {

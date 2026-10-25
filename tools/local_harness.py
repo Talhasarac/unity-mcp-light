@@ -1613,6 +1613,17 @@ def main(argv: list[str] | None = None) -> int:
         os.environ["UNITY_MCP_DEFAULT_INSTANCE"] = instance_id
         print(f"== bridge ready: instance={instance_id} port={ready.port} ==")
 
+        from transport.editor_sessions import automation_editor_session, acquire_for_automation, current_agent
+        from transport.legacy.unity_connection import send_command_with_retry as session_send
+
+        def run_owned(task, operation):
+            try:
+                with automation_editor_session(session_send, instance_id, "Unity test harness", task):
+                    return operation()
+            except RuntimeError as exc:
+                print(f"::error::{exc}")
+                raise SystemExit(2) from exc
+
         # --- Compile probe before any UTF leg (exit 3 on compile failure) ---
         wants_utf = ("editmode" in legs) or ("playmode" in legs)
         compile_ok = True
@@ -1623,7 +1634,7 @@ def main(argv: list[str] | None = None) -> int:
 
         # Creating and deleting smoke objects leaves an untitled scene dirty. UTF
         # cancels its save dialog in batch mode without firing test callbacks.
-        if wants_utf and compile_ok and not prepare_ci_scene(args, instance_id):
+        if wants_utf and compile_ok and not run_owned("Prepare test scene", lambda: prepare_ci_scene(args, instance_id)):
             record_scene_setup_failure()
             return 2
 
@@ -1638,9 +1649,9 @@ def main(argv: list[str] | None = None) -> int:
                 outcomes.append(LegOutcome("editmode", "fail", blocking=True,
                                            detail="project does not compile", exit_code=3))
             else:
-                record_outcome(run_utf_leg("EditMode", instance_id, blocking=True,
+                record_outcome(run_owned("Run EditMode tests", lambda: run_utf_leg("EditMode", instance_id, blocking=True,
                                             deadline=deadline, max_retries=args.max_retries,
-                                            retry_ms=args.retry_ms))
+                                            retry_ms=args.retry_ms)))
 
         # --- PlayMode leg (default-ON, NON-BLOCKING unless --strict-playmode) ---
         if "playmode" in legs:
@@ -1658,16 +1669,18 @@ def main(argv: list[str] | None = None) -> int:
                     ready = wait_for_ready(launcher, handle, status_dir, args.bridge_wait, time.time(), deadline)
                     instance_id = ready.instance_id
                     os.environ["UNITY_MCP_DEFAULT_INSTANCE"] = instance_id
+                    # A new Editor has no previous lease. Reacquire before scene setup/retry.
+                    acquire_for_automation(session_send, instance_id, current_agent.get(), "Retry PlayMode tests")
                     if not prepare_ci_scene(args, instance_id):
                         record_scene_setup_failure()
                         raise SystemExit(2)
                     return instance_id
 
                 relaunch = _relaunch if (owns_editor and not args.reuse) else None
-                record_outcome(run_playmode_with_retry(
+                record_outcome(run_owned("Run PlayMode tests", lambda: run_playmode_with_retry(
                     instance_id, deadline, args.max_retries, args.retry_ms,
                     args.playmode_init_timeout, bool(args.strict_playmode), relaunch=relaunch,
-                    before_retry=lambda: capture_diagnostics("playmode-before-retry")))
+                    before_retry=lambda: capture_diagnostics("playmode-before-retry"))))
 
         # Aggregate + write reports.
         write_reports(junit_path, reports_dir, outcomes)

@@ -17,6 +17,39 @@ Before applying a template:
 
 ## Quick Start: Resource-First Workflow
 
+## Shared Editor Ownership — Required
+
+Before inspecting scene objects or editing project files, call
+`manage_editor_session(action="acquire", agent_name="Claude - UI", task="Build the menu")`.
+This applies to a single agent too. The server supplies the session identity and lease token;
+do not invent IDs or copy another agent's token. Then read the relevant resources and current files.
+
+- Keep ownership for the entire inspect → edit → compile → test → verify → save task.
+- Owner requests renew the 300-second idle lease. Call `action="renew"` during long work;
+  `lease_seconds` may be 30–900 on acquisition. Do not hold the editor while waiting for user input.
+- On `editor_owned` or `editor_busy`, wait `data.retry_after_ms` (normally 2 seconds), then
+  check `manage_editor_session(action="status")` or editor state. Back off during long work;
+  never spin, restart the bridge or force-release someone else's ownership.
+- On `editor_lease_required`, acquire again and **re-read** objects, scene and file contents.
+  Discard old instance IDs and assumptions after a scene change/domain reload/reconnect.
+- Release with `action="release"` after verification, or after a failed task once Unity is idle.
+  Compilation/tests or a still-running command prevent handover. Diagnose and report a stuck
+  operation; only the human may use **Connect → Agents & editor ownership → Release ownership**.
+- A batch or a custom tool needs the same lease as ordinary tools. Unknown operations are
+  protected by default. Status, console reads, test-job polls and registered resources remain
+  readable while another agent owns the editor; those observations are not an editing snapshot.
+- Do not bypass the lease by writing C#, `.unity`, `.prefab`, `.meta` or project settings through
+  shell tools. External file writes and a human clicking in Unity cannot be intercepted by MCP.
+  Parallel agents should research/review or prepare changes in separate workspaces, then hand
+  them to the owner for integration. Separate Git branches in one checkout are not isolation.
+
+Both HTTP and stdio use the Unity-side gate. Prefer one shared HTTP server for multiple agents.
+Each independent agent needs its own MCP session; subagents sharing one session are one owner
+and must be coordinated by their parent. The window distinguishes open bridge/TCP connections
+from recent MCP agent activity; an idle HTTP session is not necessarily connected.
+
+### Resource-First Workflow
+
 **Always read relevant resources before using tools.** This prevents errors and provides the necessary context.
 
 ```

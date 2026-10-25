@@ -234,11 +234,17 @@ def main() -> int:
     print(f"== Unity bridge E2E smoke (run={_RUN}, instance={instance or 'auto'}) ==", flush=True)
 
     try:
-        results = run(instance, args.max_retries, args.retry_ms)
+        from transport.editor_sessions import automation_editor_session
+        with automation_editor_session(send_command_with_retry, instance, "Bridge smoke", "Run bridge contract checks"):
+            results = run(instance, args.max_retries, args.retry_ms)
     except BridgeUnavailable as exc:
         print(f"::error::No Unity bridge reachable: {exc}", flush=True)
         print("Is a Unity Editor running with the MCP bridge active? "
               "(set UNITY_MCP_STATUS_DIR / UNITY_MCP_DEFAULT_INSTANCE for CI)", flush=True)
+        return 2
+
+    except RuntimeError as exc:
+        print(f"::error::{exc}", flush=True)
         return 2
 
     if args.junit:
