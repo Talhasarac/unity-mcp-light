@@ -97,6 +97,10 @@ async def send_command(
 
     if cfg.unity_instance:
         payload["unity_instance"] = cfg.unity_instance
+    if cfg.agent_id:
+        payload["agent_id"] = cfg.agent_id
+    if cfg.lease_id:
+        payload["lease_id"] = cfg.lease_id
 
     try:
         async with httpx.AsyncClient() as client:

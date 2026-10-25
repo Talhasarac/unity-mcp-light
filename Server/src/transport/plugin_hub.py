@@ -285,6 +285,8 @@ class PluginHub(WebSocketEndpoint):
     # ------------------------------------------------------------------
     @classmethod
     async def send_command(cls, session_id: str, command_type: str, params: dict[str, Any]) -> dict[str, Any]:
+        from transport.editor_sessions import command_params
+        params = command_params(params)
         websocket = await cls._get_connection(session_id)
         command_id = str(uuid.uuid4())
         future: asyncio.Future = asyncio.get_running_loop().create_future()

@@ -25,6 +25,7 @@ namespace MCPForUnity.Editor.Windows
     {
         // Section controllers
         private McpConnectionSection connectionSection;
+        private McpSessionsSection sessionsSection;
         private McpClientConfigSection clientConfigSection;
         private McpAdvancedSection advancedSection;
         private McpToolsSection toolsSection;
@@ -274,6 +275,8 @@ namespace MCPForUnity.Editor.Windows
                 connectionSection.OnTransportChanged += () =>
                     clientConfigSection?.RefreshSelectedClient(forceImmediate: true);
             }
+
+            sessionsSection = new McpSessionsSection(clientsContainer);
 
             // Load and initialize Client Configuration section
             var clientConfigTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
@@ -613,6 +616,7 @@ namespace MCPForUnity.Editor.Windows
                 return;
 
             connectionSection?.UpdateConnectionStatus();
+            sessionsSection?.Refresh();
         }
 
         private void RefreshAllData()

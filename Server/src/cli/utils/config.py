@@ -14,6 +14,8 @@ class CLIConfig:
     timeout: int = 30
     format: str = "text"  # text, json, table
     unity_instance: Optional[str] = None
+    agent_id: Optional[str] = None
+    lease_id: Optional[str] = None
 
     @classmethod
     def from_env(cls) -> "CLIConfig":
@@ -37,6 +39,8 @@ class CLIConfig:
             timeout=timeout,
             format=os.environ.get("UNITY_MCP_FORMAT", "text"),
             unity_instance=os.environ.get("UNITY_MCP_INSTANCE"),
+            agent_id=os.environ.get("UNITY_MCP_AGENT_ID"),
+            lease_id=os.environ.get("UNITY_MCP_LEASE_ID"),
         )
 
 

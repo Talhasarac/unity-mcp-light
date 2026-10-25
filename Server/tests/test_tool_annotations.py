@@ -40,6 +40,8 @@ READ_ONLY = {
 }
 
 NON_DESTRUCTIVE = {
+    # Grants/releases a temporary editor lease; cannot modify project content or evict another owner.
+    "manage_editor_session",
     # preflight(refresh_if_dirty=True) at find_gameobjects.py can refresh assets,
     # so it is not read-only -- but it never destroys anything.
     "find_gameobjects",

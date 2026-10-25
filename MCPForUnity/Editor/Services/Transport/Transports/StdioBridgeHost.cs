@@ -278,6 +278,18 @@ namespace MCPForUnity.Editor.Services.Transport.Transports
             get { lock (lockObj) { return commandQueue.Count; } }
         }
 
+        internal static string[] GetConnectedEndpoints()
+        {
+            lock (clientsLock)
+            {
+                return activeClients.Select(c =>
+                {
+                    try { return c.Client?.RemoteEndPoint?.ToString(); }
+                    catch { return null; }
+                }).Where(endpoint => endpoint != null).ToArray();
+            }
+        }
+
         /// <summary>
         /// True when an already-queued command is the same payload arriving from a different
         /// connection — the signature of a broker that reconnected and resent. Payload equality
@@ -289,7 +301,20 @@ namespace MCPForUnity.Editor.Services.Transport.Transports
         {
             if (queuedOwner == null || incomingOwner == null) return false;
             if (ReferenceEquals(queuedOwner, incomingOwner)) return false;
-            return string.Equals(queuedCommandJson, incomingCommandJson, StringComparison.Ordinal);
+            // Equal payloads from independent agents are separate operations. Only the same
+            // logical request from the same MCP session may attach to a reconnecting socket.
+            try
+            {
+                var first = JObject.Parse(queuedCommandJson)["params"]?[EditorSessionCoordinator.MetadataKey];
+                var second = JObject.Parse(incomingCommandJson)["params"]?[EditorSessionCoordinator.MetadataKey];
+                string requestId = first?.Value<string>("request_id");
+                return !string.IsNullOrEmpty(requestId)
+                    && requestId == second?.Value<string>("request_id")
+                    && !string.IsNullOrEmpty(first?.Value<string>("id"))
+                    && first.Value<string>("id") == second?.Value<string>("id")
+                    && string.Equals(queuedCommandJson, incomingCommandJson, StringComparison.Ordinal);
+            }
+            catch (JsonException) { return false; }
         }
 
         /// <summary>
@@ -602,22 +627,8 @@ namespace MCPForUnity.Editor.Services.Transport.Transports
                         return;
                     }
 
-                    // In stdio transport there is only ever one active Python server.
-                    // A new connection means the old one is dead — close stale clients so
-                    // their hung ReadFrameAsUtf8Async calls throw and exit cleanly.
-                    TcpClient[] staleClients;
-                    lock (clientsLock)
-                    {
-                        staleClients = activeClients.Where(c => c != client).ToArray();
-                    }
-                    if (staleClients.Length > 0)
-                    {
-                        McpLog.Info($"Closing {staleClients.Length} stale client(s) after new connection", always: false);
-                        foreach (var stale in staleClients)
-                        {
-                            try { stale.Close(); } catch { }
-                        }
-                    }
+                    // Multiple Python clients may share this editor. Dead sockets are retired
+                    // by their own read loop; a new connection must never evict another agent.
 
                     while (isRunning && !token.IsCancellationRequested)
                     {

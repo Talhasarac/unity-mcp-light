@@ -21,17 +21,36 @@ This fork removes tools that most Unity workflows don't need and trims the defin
 
 | | Upstream | Light |
 |---|---|---|
-| Tools | 49 | **39** |
-| Tool definitions (approx. tokens) | ~30.5k | **~20.6k** |
-| Skill: `SKILL.md`, loaded when the skill triggers (approx. tokens) | ~3.8k | **~4.1k** |
+| Tools | 49 | **40** |
+| Tool definitions (approx. tokens) | ~30.5k | **~21.7k** |
+| Skill: `SKILL.md`, loaded when the skill triggers (approx. tokens) | ~3.8k | **~4.7k** |
 | Skill: reference docs, read on demand (approx. tokens) | ~41.2k (4 files) | **~33.9k** (3 files) |
-| Skill total (approx. tokens) | ~45.0k | **~38.0k** |
+| Skill total (approx. tokens) | ~45.0k | **~38.6k** |
 
 The skill drops the ProBuilder guide and every section about removed tools, and adds a short guide to `inspect_prefab`. Token counts are characters ÷ 4.
 
 Everything else — scenes, GameObjects, components, scripts, assets, prefabs, materials, shaders, procedural textures, camera, graphics, physics, animation, builds, tests, UI Toolkit, API reflection — works the same as upstream.
 
 ## What was added
+
+**Shared editor coordination.** Multiple agents can connect over HTTP or stdio without
+silently taking over each other's editor work. Call `manage_editor_session(action="acquire",
+agent_name="Claude - UI", task="Build menu")` before inspecting/editing a task, keep the
+lease through compilation and verification, then `action="release"`. Competing requests
+receive a structured wait response. Expired or revoked leases cannot authorize old queued
+commands. Ownership survives domain reloads; an executing command keeps the editor reserved
+even if its caller times out.
+
+The **Connect → Agents & editor ownership** panel shows the HTTP bridge, open stdio socket
+count (hover for endpoints), current owner/task, lease time, and recent agents with their
+last request. It includes **Copy agent instructions** and **Release ownership** for human
+recovery when the editor is idle. Recent agent activity is not a claim that an HTTP client
+still has an open socket. See [the workflow and migration guide](docs/multi-agent-editing.md).
+
+**Upgrade both the Python server and Unity package together, restart MCP clients, and
+reinstall the bundled skill.** Project operations now require an editor lease, including
+single-agent workflows. This does not block external filesystem edits or human editor actions;
+agents must coordinate those through the same workflow.
 
 `manage_animation` is restored in the optional `animation` group: Animator playback and parameters, AnimatorController states/transitions/layers/blend trees, and AnimationClip curves/events/presets. Enable it with `manage_tools(action="activate", group="animation")` or the **Animation** group on Unity’s **Tools** tab. The CLI also exposes `unity-mcp animation`.
 

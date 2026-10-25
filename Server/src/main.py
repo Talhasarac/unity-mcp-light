@@ -1,4 +1,5 @@
 from starlette.requests import Request
+from transport.editor_sessions import EditorSessionMiddleware, EditorAgent, current_agent
 from transport.unity_instance_middleware import (
     UnityInstanceMiddleware,
     get_unity_instance_middleware
@@ -310,6 +311,13 @@ Targeting Unity instances:
 
 Important Workflows:
 
+Shared editor ownership (required, even for one agent):
+- Call manage_editor_session(action="acquire", agent_name="your role", task="short task description") BEFORE inspecting a scene or changing project files.
+- Keep ownership for the whole read/edit/compile/test/verify/save sequence. Commands renew the idle lease; use action="renew" during long work (default 300 seconds).
+- If editor_owned/editor_busy is returned, wait data.retry_after_ms, inspect action="status" or editor state, then retry. Do not restart the bridge, force-unlock, or edit files through the shell to bypass ownership.
+- After expiry, reconnect or reacquisition, re-read objects/files and discard old instance IDs and assumptions. Release with action="release" after verification, including on task failure when Unity is idle.
+- Independent agents may research or prepare code in separate workspaces. Shared-folder edits, play/stop, scene changes and compilation must belong to the owner. This lock cannot intercept external filesystem writes or a human using Unity.
+
 Resources vs Tools:
 - Use RESOURCES to read editor state (mcpforunity://editor/state, mcpforunity://project/info, mcpforunity://project/tags, mcpforunity://tests, etc)
 - Use TOOLS to perform actions and mutations (manage_editor for play mode control, tag/layer management, etc)
@@ -414,8 +422,21 @@ def create_mcp_server(project_scoped_tools: bool) -> FastMCP:
         @mcp.custom_route("/api/command", methods=["POST"])
         async def cli_command_route(request: Request) -> JSONResponse:
             """REST endpoint for CLI commands to Unity."""
+            agent_token = None
             try:
                 body = await request.json()
+                agent_id = body.get("agent_id")
+                lease_id = body.get("lease_id")
+                if agent_id is not None:
+                    import hashlib
+                    if not isinstance(agent_id, str) or not 1 <= len(agent_id) <= 128:
+                        return JSONResponse({"success": False, "error": "agent_id must be a non-empty string up to 128 characters"}, status_code=400)
+                    if lease_id is not None and (not isinstance(lease_id, str) or len(lease_id) > 128):
+                        return JSONResponse({"success": False, "error": "Invalid lease_id"}, status_code=400)
+                    agent_token = current_agent.set(EditorAgent(
+                        "cli-" + hashlib.sha256(agent_id.encode()).hexdigest()[:28],
+                        "CLI", "http-cli", [lease_id] if lease_id else [],
+                    ))
 
                 command_type = body.get("type")
                 params = body.get("params", {})
@@ -530,6 +551,9 @@ def create_mcp_server(project_scoped_tools: bool) -> FastMCP:
             except Exception as e:
                 logger.exception("CLI command error: %s", e)
                 return JSONResponse({"success": False, "error": str(e)}, status_code=500)
+            finally:
+                if agent_token is not None:
+                    current_agent.reset(agent_token)
 
         @mcp.custom_route("/api/instances", methods=["GET"])
         async def cli_instances_route(_: Request) -> JSONResponse:
@@ -615,6 +639,7 @@ def create_mcp_server(project_scoped_tools: bool) -> FastMCP:
     # Initialize and register middleware for session-based Unity instance routing
     # Using the singleton getter ensures we use the same instance everywhere
     unity_middleware = get_unity_instance_middleware()
+    mcp.add_middleware(EditorSessionMiddleware())
     mcp.add_middleware(unity_middleware)
     logger.info("Registered Unity instance middleware for session-based routing")
 

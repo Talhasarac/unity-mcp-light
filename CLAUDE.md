@@ -36,8 +36,14 @@ MCP tools call Unity via WebSocket (`send_with_unity_instance`). CLI commands ca
 
 ### Transport Modes
 
-- **Stdio**: Single-agent only. Separate Python process per client. Legacy TCP bridge to Unity. New connections stomp old ones.
-- **HTTP**: Multi-agent ready. Single shared Python server. WebSocket hub at `/hub/plugin`. Session isolation via `client_id`.
+- **Stdio**: Separate Python process per client. Multiple TCP connections may coexist; reconnect deduplication requires the same session and request ID.
+- **HTTP**: One shared Python server and WebSocket hub at `/hub/plugin`. MCP session IDs isolate routing and ownership credentials.
+- **Both**: Unity's `EditorSessionCoordinator` enforces an expiring, fenced editor lease. Acquire with `manage_editor_session` before inspecting/editing a task, keep it through compilation/tests/verification, and release afterward. See the installed skill for the full workflow. Agents sharing one MCP session must be coordinated by their parent.
+
+The lease does not intercept terminal/file writes or human actions in Unity. When editing a
+live Unity project, acquire ownership before changing shared files. Parallel code preparation
+must use separate workspaces. Status, resource reads and console/test polling are diagnostic
+exceptions; unknown/custom commands and batches require ownership.
 
 ## Code Philosophy
 
