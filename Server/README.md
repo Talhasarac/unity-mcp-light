@@ -1,4 +1,4 @@
-# Unity MCP Light Server — v1.0.1
+# Unity MCP Light Server — v1.0.2
 
 [![MCP](https://badge.mcpx.dev?status=on 'MCP Enabled')](https://modelcontextprotocol.io/introduction)
 [![python](https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
@@ -19,12 +19,12 @@ Model Context Protocol server for Unity Editor integration. Control Unity throug
 
 ### Option 1: Light from GitHub
 
-Install this fork using `uvx`. The PyPI package is upstream, not Light. The examples below pin the matching `v1.0.1` server.
+Install this fork using `uvx`. The PyPI package is upstream, not Light. The examples below pin the matching `v1.0.2` server.
 
 **Run Server (HTTP):**
 
 ```bash
-uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirectory=Server" mcp-for-unity --transport http --http-url http://localhost:8080
+uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.2#subdirectory=Server" mcp-for-unity --transport http --http-url http://localhost:8080
 ```
 
 **MCP Client Configuration (HTTP):**
@@ -48,7 +48,7 @@ uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirector
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirectory=Server",
+        "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.2#subdirectory=Server",
         "mcp-for-unity",
         "--transport",
         "stdio"
@@ -60,7 +60,7 @@ uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirector
 
 ### Option 2: From GitHub Source
 
-Use this configuration to run Light v1.0.1. Replace the tag with `main` only when intentionally following development changes.
+Use this configuration to run Light v1.0.2. Replace the tag with `main` only when intentionally following development changes.
 
 ```json
 {
@@ -69,7 +69,7 @@ Use this configuration to run Light v1.0.1. Replace the tag with `main` only whe
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirectory=Server",
+        "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.2#subdirectory=Server",
         "mcp-for-unity",
         "--transport",
         "stdio"
@@ -170,19 +170,19 @@ Telemetry:
 **Stdio (default):**
 
 ```bash
-uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirectory=Server" mcp-for-unity --transport stdio
+uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.2#subdirectory=Server" mcp-for-unity --transport stdio
 ```
 
 **HTTP (local):**
 
 ```bash
-uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirectory=Server" mcp-for-unity --transport http --http-host 127.0.0.1 --http-port 8080
+uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.2#subdirectory=Server" mcp-for-unity --transport http --http-host 127.0.0.1 --http-port 8080
 ```
 
 **HTTP (remote-hosted with API key auth):**
 
 ```bash
-uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirectory=Server" mcp-for-unity \
+uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.2#subdirectory=Server" mcp-for-unity \
   --transport http \
   --http-host 0.0.0.0 \
   --http-port 8080 \
@@ -194,7 +194,7 @@ uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirector
 **Disable telemetry:**
 
 ```bash
-DISABLE_TELEMETRY=1 uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirectory=Server" mcp-for-unity --transport stdio
+DISABLE_TELEMETRY=1 uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.2#subdirectory=Server" mcp-for-unity --transport stdio
 ```
 
 ---

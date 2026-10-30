@@ -1,7 +1,7 @@
 {
   "manifest_version": "0.3",
   "name": "Unity MCP Light",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Unity Editor automation with compact tool schemas, read-only prefab inspection, and local Blender Bridge",
   "author": {
     "name": "Coplay",
@@ -22,7 +22,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/Talhasarac/unity-mcp-light.git@v1.0.1#subdirectory=Server",
+        "git+https://github.com/Talhasarac/unity-mcp-light.git@v1.0.2#subdirectory=Server",
         "mcp-for-unity"
       ],
       "env": {}

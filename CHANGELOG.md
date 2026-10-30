@@ -2,6 +2,11 @@
 
 Light uses independent semantic versioning starting with v1.0.0. Earlier 10.x numbers identify the upstream MCP for Unity baseline; they are not earlier releases in Light's v1 sequence. Original upstream attribution and license notices remain intact.
 
+## v1.0.2 — Unity compile fix — 2026-10-31
+
+- Fix CS7036 in Claude Desktop transport detection by using `Array.IndexOf` for the command argument lookup. The previous `Contains` call required a missing LINQ import and resolved to an incompatible span overload.
+- No compilation or tests run; user verification pending.
+
 ## v1.0.1 — Claude Desktop connection repair — 2026-10-31
 
 - Repair Connection now supports Claude Desktop with HTTP Local/Remote through a bundled stdio-to-HTTP bridge, preserving the shared server transport.

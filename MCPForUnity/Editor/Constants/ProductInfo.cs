@@ -7,7 +7,7 @@ namespace MCPForUnity.Editor.Constants
         /// <summary>Server key written into MCP client configs (Claude Code, Codex, Cursor, ...).</summary>
         public const string McpServerName = "unity-mcp-light";
         /// <summary>Default uvx --from source for the Python server: this release's matching Server/ tag.</summary>
-        public const string ServerPackageSource = "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.1#subdirectory=Server";
+        public const string ServerPackageSource = "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.2#subdirectory=Server";
         public const string MenuRoot = "Window/Unity MCP Light";
     }
 }

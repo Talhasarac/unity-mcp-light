@@ -295,7 +295,7 @@ namespace MCPForUnity.Editor.Clients
                     bool wantsHttp = EditorConfigurationCache.Instance.UseHttpTransport;
                     matches = matches && (wantsHttp
                         ? !string.IsNullOrEmpty(bridgeUrl) && UrlsEqual(bridgeUrl, HttpEndpointUtility.GetMcpRpcUrl())
-                        : string.IsNullOrEmpty(bridgeUrl) && args != null && args.Contains("mcp-for-unity"));
+                        : string.IsNullOrEmpty(bridgeUrl) && args != null && Array.IndexOf(args, "mcp-for-unity") >= 0);
                 }
 
                 if (matches)
