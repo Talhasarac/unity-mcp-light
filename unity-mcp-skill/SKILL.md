@@ -17,38 +17,41 @@ Before applying a template:
 
 ## Quick Start: Resource-First Workflow
 
-## Shared Editor Ownership — Required
+## Shared Editor Coordination
 
-Before inspecting scene objects or editing project files, call
-`manage_editor_session(action="acquire", agent_name="Claude - UI", task="Build the menu")`.
-This applies to a single agent too. The server supplies the session identity and lease token;
-do not invent IDs or copy another agent's token. Then read the relevant resources and current files.
+Ordinary commands are automatically scheduled: **do not acquire the whole editor for a task**.
+Use `manage_editor_session(action="status")` for current agents and reservations.
+For a short sequence, acquire with `resources=["object:<instance ID>", "asset:Assets/<path>"]`,
+re-read, perform the sequence and release. Omit resources only for exclusive editor workflows.
+Audited transform/material actions have narrow scopes; unclassified side effects remain
+editor-wide for the duration of an operation. Keep explicit reservations short.
 
-- Keep ownership for the entire inspect → edit → compile → test → verify → save task.
-- Owner requests renew the 300-second idle lease. Call `action="renew"` during long work;
-  `lease_seconds` may be 30–900 on acquisition. Do not hold the editor while waiting for user input.
-- On `editor_owned` or `editor_busy`, wait `data.retry_after_ms` (normally 2 seconds), then
-  check `manage_editor_session(action="status")` or editor state. Back off during long work;
-  never spin, restart the bridge or force-release someone else's ownership.
-- On `editor_lease_required`, acquire again and **re-read** objects, scene and file contents.
-  Discard old instance IDs and assumptions after a scene change/domain reload/reconnect.
-- Release with `action="release"` after verification, or after a failed task once Unity is idle.
-  Compilation/tests or a still-running command prevent handover. Diagnose and report a stuck
-  operation; only the human may use **Connect → Agents & editor ownership → Release ownership**.
-- A batch or a custom tool needs the same lease as ordinary tools. Unknown operations are
-  protected by default. Status, console reads, test-job polls and registered resources remain
-  readable while another agent owns the editor; those observations are not an editing snapshot.
-- Do not bypass the lease by writing C#, `.unity`, `.prefab`, `.meta` or project settings through
-  shell tools. External file writes and a human clicking in Unity cannot be intercepted by MCP.
-  Parallel agents should research/review or prepare changes in separate workspaces, then hand
-  them to the owner for integration. Separate Git branches in one checkout are not isolation.
+For optimistic editing, take `manage_editor_session(action="snapshot", resources=[...])`
+**before** inspecting dependencies, then pass its `data.revision` as
+`batch_execute(expected_revision=..., commands=[...])`. A `conflict` runs no commands:
+take a fresh snapshot and re-read. Snapshots expire after 10 minutes or a domain reload.
+Batches have no rollback. Include all read dependencies in the snapshot.
 
-Both HTTP and stdio use the Unity-side gate. Prefer one shared HTTP server for multiple agents.
-Each independent agent needs its own MCP session; subagents sharing one session are one owner
-and must be coordinated by their parent. The window distinguishes open bridge/TCP connections
-from recent MCP agent activity; an idle HTTP session is not necessarily connected.
+`editor_queue_timeout` with `executed=false` means no command started. A transport timeout
+can leave a running operation; inspect state before retrying mutations. Running work never
+unlocks merely because its caller disconnected. Stale reservations require reacquisition
+and fresh reads. Shell writes and human Unity actions are not intercepted by MCP.
 
-### Resource-First Workflow
+Prefer separate MCP sessions for independent agents. Shared-session callers share explicit
+reservations. Compilation, tests and editor transitions remain global coordination points.
+
+## Capability discovery
+
+Use the **active MCP schema** for names, parameters and accepted actions. This is the Light
+fork; upstream documentation may describe removed tools. `manage_tools(action="list_groups")`
+returns installed tool names; activate an existing optional group if needed. Activation cannot
+restore removed tools. For project-specific tools use the custom-tools resource as described below.
+
+Screenshots use `manage_camera`; `manage_scene` has no public screenshot action.
+`manage_script` accepts create/read/delete; edit with `apply_text_edits` or `script_apply_edits`.
+Batch entries invoke Unity handlers, so server-only tools and Python-only aliases cannot be
+called inside a batch. Compilation, build/test/bake starts and Play Mode transitions
+must also be standalone calls. All batch commands execute sequentially, regardless of `parallel`.
 
 **Always read relevant resources before using tools.** This prevents errors and provides the necessary context.
 
@@ -86,14 +89,13 @@ read_console(types=["error"], count=10, include_stacktrace=True)
 ### 2. Use `batch_execute` for Multiple Operations
 
 ```python
-# 10-100x faster than sequential calls
+# Fewer transport round trips; Unity handlers still run sequentially
 batch_execute(
     commands=[
         {"tool": "manage_gameobject", "params": {"action": "create", "name": "Cube1", "primitive_type": "Cube"}},
         {"tool": "manage_gameobject", "params": {"action": "create", "name": "Cube2", "primitive_type": "Cube"}},
         {"tool": "manage_gameobject", "params": {"action": "create", "name": "Cube3", "primitive_type": "Cube"}}
-    ],
-    parallel=True  # Hint only: Unity may still execute sequentially
+    ]
 )
 ```
 

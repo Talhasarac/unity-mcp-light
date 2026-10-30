@@ -106,20 +106,13 @@ batch_execute(commands=[
 ])
 ```
 
-### Script Overwrites with `manage_script(action="update")`
+### Editing an Existing Script
 
-When a generated script needs to be rewritten (e.g., to add auto-wiring logic), use `update` instead of deleting and recreating:
-
-```python
-manage_script(
-    action="update",
-    path="Assets/Scripts/MyScript.cs",
-    contents="using UnityEngine;\n\npublic class MyScript : MonoBehaviour { ... }"
-)
-# manage_script update auto-triggers import + compile — just wait and check console
-# Read mcpforunity://editor/state → wait until is_compiling == false
-read_console(types=["error"], count=10)
-```
+The public `manage_script` schema accepts `create`, `read` and `delete`; it does not accept
+`update`. Use `script_apply_edits` for structured changes or `apply_text_edits` for exact
+ranges. Read the current text first, and supply `precondition_sha256` to `apply_text_edits`
+from that observation to reject concurrent edits. Preserve the existing script and its `.meta`.
+Follow the active schema for edit shapes, and the project's rules for compilation/verification.
 
 ---
 
@@ -183,7 +176,7 @@ for x in range(5):
         })
 
 # Execute in batches of 25
-batch_execute(commands=commands[:25], parallel=True)
+batch_execute(commands=commands[:25])
 ```
 
 ### Clone and Arrange Objects
@@ -1857,7 +1850,7 @@ for enemy_id in enemies["ids"]:
 
 # Execute in batches
 for i in range(0, len(commands), 25):
-    batch_execute(commands=commands[i:i+25], parallel=True)
+    batch_execute(commands=commands[i:i+25])
 ```
 
 ### Mass Object Creation with Variations
@@ -1878,7 +1871,7 @@ for i in range(20):
         }
     })
 
-batch_execute(commands=commands, parallel=True)
+batch_execute(commands=commands)
 ```
 
 ### Cleanup Pattern

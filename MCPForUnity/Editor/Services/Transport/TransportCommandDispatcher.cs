@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MCPForUnity.Editor.Helpers;
@@ -45,6 +46,8 @@ namespace MCPForUnity.Editor.Services.Transport
             public CancellationTokenRegistration CancellationRegistration { get; }
             public bool IsExecuting { get; set; }
             public DateTime QueuedAt { get; }
+            public long Sequence { get; set; }
+            public JObject LastWait { get; set; }
 
             public void Dispose()
             {
@@ -64,6 +67,7 @@ namespace MCPForUnity.Editor.Services.Transport
 
         private static readonly Dictionary<string, PendingCommand> Pending = new();
         private static readonly object PendingLock = new();
+        private static long nextSequence;
         private static bool updateHooked;
         private static bool initialised;
 
@@ -107,6 +111,7 @@ namespace MCPForUnity.Editor.Services.Transport
 
             lock (PendingLock)
             {
+                pending.Sequence = ++nextSequence;
                 Pending[id] = pending;
             }
 
@@ -239,7 +244,7 @@ namespace MCPForUnity.Editor.Services.Transport
                 }
 
                 ready = new List<(string, PendingCommand)>(Pending.Count);
-                foreach (var kvp in Pending)
+                foreach (var kvp in Pending.OrderBy(p => p.Value.Sequence))
                 {
                     if (kvp.Value.IsExecuting)
                     {
@@ -257,9 +262,10 @@ namespace MCPForUnity.Editor.Services.Transport
                 }
             }
 
+            var waiting = new List<EditorCommandAccess>();
             foreach (var (id, pending) in ready)
             {
-                ProcessCommand(id, pending);
+                ProcessCommand(id, pending, waiting);
             }
             }
             finally
@@ -268,7 +274,7 @@ namespace MCPForUnity.Editor.Services.Transport
             }
         }
 
-        private static void ProcessCommand(string id, PendingCommand pending)
+        private static void ProcessCommand(string id, PendingCommand pending, List<EditorCommandAccess> waiting)
         {
             if (pending.CancellationToken.IsCancellationRequested)
             {
@@ -373,16 +379,66 @@ namespace MCPForUnity.Editor.Services.Transport
                 }
 
                 var logType = resourceMeta != null ? "resource" : toolMeta != null ? "tool" : "unknown";
-                if (!EditorSessionCoordinator.IsDiagnostic(command.type, parameters, resourceMeta != null))
+                var access = EditorCommandAccess.Describe(command.type, parameters, resourceMeta != null);
+                string revision = (parameters["expectedRevision"] ?? parameters["expected_revision"])?.Value<string>();
+                if (revision != null)
                 {
-                    var denied = EditorSessionCoordinator.Begin(identity, command.type);
-                    if (denied != null)
+                    if (command.type != "batch_execute") throw new ArgumentException("expected_revision is supported on batch_execute only.");
+                    var observation = EditorRevisionSnapshots.GetReads(identity?.Value<string>("id"), revision, out var revisionError);
+                    if (revisionError != null)
                     {
-                        pending.TrySetResult(JsonConvert.SerializeObject(new { status = "success", result = denied }));
+                        pending.TrySetResult(JsonConvert.SerializeObject(new { status = "success", result = revisionError }));
                         RemovePending(id, pending);
                         return;
                     }
+                    access.Reads = access.Reads.Concat(observation).Distinct().ToArray();
+                }
+                if (!access.Diagnostic)
+                {
+                    // A waiting writer prevents later conflicting work from starving it. A
+                    // reservation waiter does not: its holder must be able to finish/release.
+                    if (waiting.Any(earlier => earlier.Conflicts(access)))
+                    {
+                        Defer(id, pending, pending.LastWait ?? new JObject {
+                            ["success"] = false, ["error"] = "editor_busy",
+                            ["message"] = "An earlier conflicting command is queued." });
+                        waiting.Add(access);
+                        return;
+                    }
+                    var denied = EditorSessionCoordinator.Begin(identity, id, access);
+                    if (denied != null)
+                    {
+                        string reason = denied.Value<string>("error");
+                        if (reason == "editor_busy" || reason == "resource_reserved")
+                        {
+                            if (reason == "editor_busy") waiting.Add(access);
+                            Defer(id, pending, denied);
+                        }
+                        else
+                        {
+                            pending.TrySetResult(JsonConvert.SerializeObject(new { status = "success", result = denied }));
+                            RemovePending(id, pending);
+                        }
+                        return;
+                    }
                     ownsExecution = true;
+                }
+                // Cancellation before execution must not consume a single-use observation.
+                if (pending.CancellationToken.IsCancellationRequested)
+                {
+                    pending.TrySetCanceled();
+                    RemovePending(id, pending);
+                    return;
+                }
+                if (revision != null)
+                {
+                    var conflict = EditorRevisionSnapshots.Consume(identity?.Value<string>("id"), revision);
+                    if (conflict != null)
+                    {
+                        pending.TrySetResult(JsonConvert.SerializeObject(new { status = "success", result = conflict }));
+                        RemovePending(id, pending);
+                        return;
+                    }
                 }
                 var sw = McpLogRecord.IsEnabled ? System.Diagnostics.Stopwatch.StartNew() : null;
                 // Cancellation only stops the caller waiting. The real handler may still be
@@ -425,7 +481,7 @@ namespace MCPForUnity.Editor.Services.Transport
                             logStatus, sw?.ElapsedMilliseconds ?? 0, logError);
                         _mainThreadContext.Post(_ =>
                         {
-                            if (releaseExecution) EditorSessionCoordinator.End();
+                            if (releaseExecution) EditorSessionCoordinator.End(id);
                             if (t.IsCompletedSuccessfully) pending.TrySetResult(t.Result);
                             else pending.TrySetResult(SerializeError(logError ?? "Command cancelled"));
                             RemovePending(id, pending);
@@ -457,7 +513,31 @@ namespace MCPForUnity.Editor.Services.Transport
             }
             finally
             {
-                if (ownsExecution) EditorSessionCoordinator.End();
+                if (ownsExecution) EditorSessionCoordinator.End(id);
+            }
+        }
+
+        private static void Defer(string id, PendingCommand pending, JObject reason)
+        {
+            // A bounded wait fits normal bridge timeouts. No handler ran on queue timeout;
+            // callers may retry it, unlike a timeout after execution has started.
+            if ((DateTime.UtcNow - pending.QueuedAt).TotalSeconds >= 10)
+            {
+                var result = (JObject)reason.DeepClone();
+                result["blocked_by"] = reason["error"]?.DeepClone();
+                result["error"] = result["code"] = "editor_queue_timeout";
+                result["executed"] = false;
+                pending.TrySetResult(JsonConvert.SerializeObject(new { status = "success", result }));
+                RemovePending(id, pending);
+                return;
+            }
+            lock (PendingLock)
+            {
+                if (Pending.ContainsKey(id))
+                {
+                    pending.LastWait = reason;
+                    pending.IsExecuting = false;
+                }
             }
         }
 

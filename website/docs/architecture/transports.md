@@ -81,8 +81,9 @@ See [Multi-Instance Routing](/guides/multi-instance) for the routing API.
 
 ## Switching transport
 
-In either mode, acquire `manage_editor_session` before inspecting/editing a task and release
-after compilation and verification. Connection isolation does not isolate scene state.
+In either mode, ordinary calls are automatically scheduled. Use `manage_editor_session` only
+for status, snapshots or short explicit reservations; omitting resources when acquiring reserves
+the whole editor. Connection isolation does not isolate scene state.
 The Connect tab displays ownership, recent agent activity and bridge/socket connections.
 Update both the server and Unity package, restart clients and reinstall the skill when upgrading.
 

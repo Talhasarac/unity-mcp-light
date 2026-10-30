@@ -187,3 +187,46 @@ def test_real_mcp_sessions_keep_identity_and_lease_across_requests():
     ''')
     result = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+@pytest.mark.asyncio
+async def test_scoped_acquire_forwards_resources_and_replaces_editor_token(monkeypatch):
+    ctx = SimpleNamespace(set_state=AsyncMock())
+    monkeypatch.setattr(session_tool, "get_unity_instance_from_context", AsyncMock(return_value="Project@hash"))
+    send = AsyncMock(return_value={"success": True, "data": {"lease_id": "editor:new"}})
+    monkeypatch.setattr(session_tool, "send_with_unity_instance", send)
+    agent = EditorAgent("a", "Claude", "http", ["editor:old", "another:lease"])
+    token = current_agent.set(agent)
+    try:
+        result = await session_tool.manage_editor_session(ctx, "acquire", resources=["object:123"])
+        assert result["success"]
+        assert send.call_args.args[3]["resources"] == ["object:123"]
+        assert agent.lease_tokens == ["another:lease", "editor:new"]
+        assert "lease_id" not in result["data"]
+    finally:
+        current_agent.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_snapshot_preserves_revision_without_creating_a_lease(monkeypatch):
+    ctx = SimpleNamespace(set_state=AsyncMock())
+    monkeypatch.setattr(session_tool, "get_unity_instance_from_context", AsyncMock(return_value=None))
+    send = AsyncMock(return_value={"success": True, "data": {"revision": "snapshot-token"}})
+    monkeypatch.setattr(session_tool, "send_with_unity_instance", send)
+    token = current_agent.set(EditorAgent("a", "Claude", "http"))
+    try:
+        result = await session_tool.manage_editor_session(ctx, "snapshot", resources=["asset:Assets/A.mat"])
+        assert result["data"]["revision"] == "snapshot-token"
+        assert current_agent.get().lease_tokens == []
+        ctx.set_state.assert_not_awaited()
+    finally:
+        current_agent.reset(token)
+
+
+@pytest.mark.asyncio
+async def test_snapshot_requires_nonempty_resources_before_transport(monkeypatch):
+    send = AsyncMock()
+    monkeypatch.setattr(session_tool, "send_with_unity_instance", send)
+    assert not (await session_tool.manage_editor_session(None, "snapshot"))["success"]
+    assert not (await session_tool.manage_editor_session(None, "snapshot", resources=[]))["success"]
+    send.assert_not_awaited()

@@ -287,6 +287,8 @@ namespace MCPForUnity.Editor.Windows
                 var clientConfigRoot = clientConfigTree.Instantiate();
                 clientsContainer.Add(clientConfigRoot);
                 clientConfigSection = new McpClientConfigSection(clientConfigRoot);
+                if (connectionSection != null)
+                    connectionSection.RepairClientAsync = clientConfigSection.RepairSelectedClientAsync;
 
                 // Wire up transport mismatch detection: when client status is checked,
                 // update the connection section's warning banner if there's a mismatch

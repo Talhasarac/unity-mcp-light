@@ -476,7 +476,7 @@ unity-mcp raw manage_scene '{"action": "get_hierarchy", "max_nodes": 100}'
 unity-mcp raw read_console '{"count": 20}'
 unity-mcp raw manage_camera '{"action": "screenshot", "include_image": true}'
 unity-mcp raw manage_graphics '{"action": "volume_get_info", "target": "PostProcessing"}'
-unity-mcp raw manage_packages '{"action": "list_packages"}'
+unity-mcp raw manage_scene '{"action":"get_active"}'
 ```
 
 ---

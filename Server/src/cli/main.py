@@ -141,13 +141,14 @@ def cli(ctx: Context, host: str, port: int, timeout: int, format: str, instance:
 
 
 @cli.command("session")
-@click.argument("action", type=click.Choice(["status", "acquire", "renew", "release"]), default="status")
+@click.argument("action", type=click.Choice(["status", "snapshot", "acquire", "renew", "release"]), default="status")
 @click.option("--name", "agent_name", default="CLI")
 @click.option("--task", default="")
 @click.option("--lease-seconds", default=300, type=click.IntRange(30, 900))
+@click.option("--resource", "resources", multiple=True, help="object:<instance ID> or asset:Assets/<path>; repeat for each resource.")
 @pass_context
-def session(ctx: Context, action: str, agent_name: str, task: str, lease_seconds: int):
-    """Manage editor ownership. Keep the acquired lease ID for subsequent commands."""
+def session(ctx: Context, action: str, agent_name: str, task: str, lease_seconds: int, resources: tuple = ()):
+    """Inspect coordination or reserve resources. Ordinary commands need no lease."""
     from models.unity_response import normalize_unity_response
     cfg = ctx.config or get_config()
     if action != "status" and not cfg.agent_id:
@@ -155,6 +156,7 @@ def session(ctx: Context, action: str, agent_name: str, task: str, lease_seconds
     try:
         result = normalize_unity_response(run_command("manage_editor_session", {
             "action": action, "agent_name": agent_name, "task": task, "lease_seconds": lease_seconds,
+            "resources": list(resources) if resources else None,
         }, cfg))
         click.echo(format_output(result, cfg.format))
         if not result.get("success"):

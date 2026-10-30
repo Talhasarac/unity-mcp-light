@@ -105,6 +105,18 @@ namespace MCPForUnity.Editor.Tools
                     continue;
                 }
 
+                // Resources follow the same toggle policy as top-level dispatch.
+                var resourceMeta = MCPServiceLocator.ResourceDiscovery.GetResourceMetadata(toolName);
+                if (resourceMeta != null && !MCPServiceLocator.ResourceDiscovery.IsResourceEnabled(toolName))
+                {
+                    invocationFailureCount++;
+                    anyCommandFailed = true;
+                    commandResults.Add(new { tool = toolName, callSucceeded = false,
+                        result = new ErrorResponse($"Resource '{toolName}' is disabled in the Unity Editor.") });
+                    if (failFast) break;
+                    continue;
+                }
+
                 // Block disabled tools (mirrors TransportCommandDispatcher check)
                 var toolMeta = MCPServiceLocator.ToolDiscovery.GetToolMetadata(toolName);
                 if (toolMeta != null && !MCPServiceLocator.ToolDiscovery.IsToolEnabled(toolName))

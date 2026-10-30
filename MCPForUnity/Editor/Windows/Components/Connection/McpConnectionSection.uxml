@@ -13,6 +13,10 @@
             <ui:VisualElement name="version-mismatch-warning" class="warning-banner">
                 <ui:Label name="version-mismatch-text" class="warning-banner-text" />
             </ui:VisualElement>
+            <ui:VisualElement class="setting-row">
+                <ui:Button name="repair-connection-button" text="Repair Connection" class="action-button" tooltip="Update the selected client's configuration, start the server if needed, and reconnect Unity." />
+            </ui:VisualElement>
+            <ui:Label name="repair-connection-result" class="help-text" style="display: none; white-space: normal;" />
             <ui:VisualElement class="setting-row" name="http-url-row">
                 <ui:Label text="HTTP URL:" class="setting-label" />
                 <ui:TextField name="http-url" class="url-field" />

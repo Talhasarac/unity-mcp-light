@@ -780,7 +780,8 @@ namespace MCPForUnity.Editor.Tools
                         ImportAssetOptions.ForceSynchronousImport | ImportAssetOptions.ForceUpdate
                     );
 #if UNITY_EDITOR
-                    UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
+                    MCPForUnity.Editor.Services.EditorSessionCoordinator.MarkCompilationRequested();
+                UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
 #endif
                 }
                 else
@@ -2930,6 +2931,7 @@ namespace MCPForUnity.Editor.Tools
 
         public static void Schedule(string relPath, TimeSpan window)
         {
+            MCPForUnity.Editor.Services.EditorSessionCoordinator.MarkCompilationRequested();
             // Record that work is pending and track the path in a threadsafe way.
             Interlocked.Exchange(ref _pending, 1);
             lock (_lock)
@@ -2981,6 +2983,7 @@ namespace MCPForUnity.Editor.Tools
                     AssetDatabase.ImportAsset(sp, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
                 }
 #if UNITY_EDITOR
+                MCPForUnity.Editor.Services.EditorSessionCoordinator.MarkCompilationRequested();
                 UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
 #endif
                 // Fallback if needed:
@@ -3017,7 +3020,8 @@ namespace MCPForUnity.Editor.Tools
             if (synchronous) opts |= ImportAssetOptions.ForceSynchronousImport;
             AssetDatabase.ImportAsset(sp, opts);
 #if UNITY_EDITOR
-            UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
+            MCPForUnity.Editor.Services.EditorSessionCoordinator.MarkCompilationRequested();
+                UnityEditor.Compilation.CompilationPipeline.RequestScriptCompilation();
 #endif
         }
     }

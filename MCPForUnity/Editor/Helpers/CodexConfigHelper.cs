@@ -86,7 +86,9 @@ namespace MCPForUnity.Editor.Helpers
         public static string UpsertCodexServerBlock(string existingToml, string uvPath)
         {
             // Parse existing TOML or create new root table
-            var root = TryParseToml(existingToml) ?? new TomlTable();
+            var root = string.IsNullOrWhiteSpace(existingToml) ? new TomlTable() : TryParseToml(existingToml);
+            if (root == null)
+                throw new InvalidOperationException("Codex config.toml is invalid. Fix its TOML syntax first; the file has not been changed.");
 
             bool useHttpTransport = EditorPrefs.GetBool(MCPForUnity.Editor.Constants.EditorPrefKeys.UseHttpTransport, true);
 

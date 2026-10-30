@@ -16,6 +16,14 @@ namespace MCPForUnity.Editor.Clients.Configurators
         })
         { }
 
+        public override string GetConfigPath()
+        {
+            string codexHome = Environment.GetEnvironmentVariable("CODEX_HOME");
+            return string.IsNullOrWhiteSpace(codexHome)
+                ? base.GetConfigPath()
+                : Path.Combine(Path.GetFullPath(codexHome), "config.toml");
+        }
+
         public override bool SupportsSkills => true;
 
         public override string GetSkillInstallPath()

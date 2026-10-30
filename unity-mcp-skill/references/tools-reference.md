@@ -57,7 +57,7 @@ Read `mcpforunity://project/info` to detect project capabilities before making a
 
 ### batch_execute
 
-Execute multiple MCP commands in a single batch (10-100x faster).
+Execute multiple Unity commands sequentially in one request, reducing transport round trips.
 
 ```python
 batch_execute(
@@ -65,13 +65,26 @@ batch_execute(
         {"tool": "tool_name", "params": {...}},
         ...
     ],
-    parallel=False,              # bool, optional - advisory only (Unity may still run sequentially)
+    parallel=False,              # bool, optional - legacy hint; Unity always executes sequentially
     fail_fast=False,             # bool, optional - stop on first failure
-    max_parallelism=None         # int, optional - max parallel workers
+    max_parallelism=None,        # legacy hint; does not enable parallel execution
+    expected_revision=None       # optional single-use snapshot token
 )
 ```
 
 `batch_execute` is not transactional: earlier commands are not rolled back if a later command fails.
+
+### manage_editor_session
+
+Ordinary commands need no lease. `status` shows agent activity and reservations.
+`acquire` optionally accepts 1–32 `resources` selectors (`object:<instance ID>` or
+`asset:Assets/<path>`); omitting resources is an explicit exclusive editor reservation.
+Use `renew` or `release` for that session's reservation. `lease_seconds` is 30–900 (default 300).
+
+`snapshot` requires `resources`. Call it before reading the state used for an edit, then
+pass `data.revision` to `batch_execute(expected_revision=...)`. A stale snapshot returns
+`conflict` without executing the batch. Tokens are single-use, session-bound and expire
+on reload or after ten minutes. Include all read dependencies; snapshots are not rollback.
 
 ### set_active_instance
 
@@ -118,7 +131,7 @@ manage_scene(
 manage_camera(action="screenshot")
 
 # Screenshot with inline image (base64 PNG returned to AI)
-manage_scene(
+manage_camera(
     action="screenshot",
     camera="MainCamera",         # str, optional - camera name, path, or instance ID
     include_image=True,          # bool, default False - return base64 PNG inline
@@ -126,7 +139,7 @@ manage_scene(
 )
 
 # Batch surround — contact sheet of 6 fixed angles (front/back/left/right/top/bird_eye)
-manage_scene(
+manage_camera(
     action="screenshot",
     batch="surround",            # str - "surround" for 6-angle contact sheet
     max_resolution=256           # int - per-tile resolution cap
@@ -134,7 +147,7 @@ manage_scene(
 # Returns: single composite contact sheet image with labeled tiles
 
 # Batch surround centered on a specific target
-manage_scene(
+manage_camera(
     action="screenshot",
     batch="surround",
     view_target="Player",        # str|int|list[float] - center surround on this target
@@ -142,7 +155,7 @@ manage_scene(
 )
 
 # Batch orbit — configurable multi-angle grid around a target
-manage_scene(
+manage_camera(
     action="screenshot",
     batch="orbit",               # str - "orbit" for configurable angle grid
     view_target="Player",        # str|int|list[float] - target to orbit around
@@ -155,7 +168,7 @@ manage_scene(
 # Returns: single composite contact sheet (angles × elevations tiles in a grid)
 
 # Positioned screenshot (temp camera at viewpoint, no file saved)
-manage_scene(
+manage_camera(
     action="screenshot",
     view_target="Enemy",         # str|int|list[float] - target to aim at
     view_position=[0, 10, -10],  # list[float], optional - camera position

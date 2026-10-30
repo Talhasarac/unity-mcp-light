@@ -19,15 +19,14 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
         private readonly Button release;
 
         internal const string AgentInstructions =
-            "Before working in this shared Unity project, call manage_editor_session(action='acquire', " +
-            "agent_name='your role', task='short description'). Read current scene/files only after acquisition. " +
-            "Keep ownership through edit, compile, test, verify and save. Commands renew the 300-second idle " +
-            "lease; use action='renew' during long work. If editor_owned/editor_busy, wait retry_after_ms " +
-            "and check status. After expiry or reconnect, acquire and re-read everything relevant. " +
-            "Release with action='release' when done or after a failure once Unity is idle. " +
-            "Do not bypass ownership through shell edits, bridge restarts or force-unlocks. " +
-            "Other agents can research/review or prepare changes in separate workspaces. " +
-            "Human editor actions and direct filesystem writes are not intercepted by this lock.";
+            "Unity calls are scheduled automatically; do not acquire the editor for an entire task. " +
+            "Use instance IDs for object edits. For stale-edit protection, call manage_editor_session " +
+            "with action='snapshot' and resources=['object:<id>', 'asset:Assets/<path>'] before inspecting; " +
+            "pass the returned revision as batch_execute.expected_revision. On conflict, snapshot and read again. " +
+            "For a short multi-call sequence, acquire with explicit resources, then release when finished. " +
+            "Acquiring without resources is exclusive. A timeout never releases running work. " +
+            "An editor_queue_timeout with executed=false means no handler ran. " +
+            "Shell writes and human Unity actions are not intercepted; coordinate them separately.";
 
         internal McpSessionsSection(VisualElement parent)
         {
@@ -43,7 +42,7 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
             ownership = AddLabel(content, "");
             ownership.style.unityFontStyleAndWeight = FontStyle.Bold;
             task = AddLabel(content, "");
-            AddLabel(content, "One agent owns the editor through read, edit and verification. Other agents wait.");
+            AddLabel(content, "Ordinary commands share the editor. Reservations protect only overlapping work.");
             var buttons = new VisualElement();
             buttons.style.flexDirection = FlexDirection.Row;
             var copy = new Button(() => EditorGUIUtility.systemCopyBuffer = AgentInstructions)
@@ -51,8 +50,8 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
             buttons.Add(copy);
             release = new Button(() =>
             {
-                if (!EditorUtility.DisplayDialog("Release editor ownership?",
-                    "Use this only to recover an abandoned task. The previous agent's queued commands " +
+                if (!EditorUtility.DisplayDialog("Release all editor reservations?",
+                    "Use this only to recover abandoned reservations. The previous agent's queued commands " +
                     "will be rejected. This does not undo edits or cancel running operations.", "Release", "Cancel")) return;
                 if (!EditorSessionCoordinator.ReleaseFromWindow())
                     EditorUtility.DisplayDialog("Editor still busy", "Wait for the current operation, compilation or tests to finish.", "OK");
@@ -88,10 +87,16 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
             bool busy = snapshot.Value<bool>("editor_busy") || snapshot.Value<int>("in_flight") > 0;
             ownership.text = owner == null ? "Editor available" :
                 $"Owner: {owner.Value<string>("name")}  ·  {owner.Value<int>("seconds_remaining")}s idle lease remaining";
-            task.text = (owner?.Value<string>("task") ?? "Acquire ownership before starting a task.")
+            task.text = (owner?.Value<string>("task") ?? "Automatic scheduling; ordinary tasks need no lease.")
                 + (busy ? "  •  Editor busy; handover is paused." : "");
-            release.SetEnabled(owner != null && !busy);
+            var reservations = snapshot["reservations"] as JArray;
+            if (owner == null && reservations?.Count > 0)
+                ownership.text = $"Shared editor · {reservations.Count} scoped reservation(s)";
+            release.SetEnabled(reservations?.Count > 0 && !busy);
             agents.Clear();
+            if (reservations != null)
+                foreach (var reservation in reservations.OfType<JObject>())
+                    AddLabel(agents, $"Reserved by {reservation.Value<string>("name")}: {string.Join(", ", reservation["resources"].Values<string>())}");
             var rows = snapshot["agents"] as JArray;
             if (rows == null || rows.Count == 0) AddLabel(agents, "No agent activity observed yet.");
             else foreach (var row in rows.OfType<JObject>())

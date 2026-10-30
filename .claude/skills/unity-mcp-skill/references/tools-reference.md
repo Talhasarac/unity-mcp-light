@@ -17,6 +17,7 @@ Complete reference for all MCP tools. Each tool includes parameters, types, and 
 - [Testing Tools](#testing-tools)
 - [Camera Tools](#camera-tools)
 - [Graphics Tools](#graphics-tools)
+- [Animation Tools](#animation-tools)
 - [Physics Tools](#physics-tools)
 - [Docs Tools](#docs-tools)
 
@@ -56,7 +57,7 @@ Read `mcpforunity://project/info` to detect project capabilities before making a
 
 ### batch_execute
 
-Execute multiple MCP commands in a single batch (10-100x faster).
+Execute multiple Unity commands sequentially in one request, reducing transport round trips.
 
 ```python
 batch_execute(
@@ -64,13 +65,26 @@ batch_execute(
         {"tool": "tool_name", "params": {...}},
         ...
     ],
-    parallel=False,              # bool, optional - advisory only (Unity may still run sequentially)
+    parallel=False,              # bool, optional - legacy hint; Unity always executes sequentially
     fail_fast=False,             # bool, optional - stop on first failure
-    max_parallelism=None         # int, optional - max parallel workers
+    max_parallelism=None,        # legacy hint; does not enable parallel execution
+    expected_revision=None       # optional single-use snapshot token
 )
 ```
 
 `batch_execute` is not transactional: earlier commands are not rolled back if a later command fails.
+
+### manage_editor_session
+
+Ordinary commands need no lease. `status` shows agent activity and reservations.
+`acquire` optionally accepts 1–32 `resources` selectors (`object:<instance ID>` or
+`asset:Assets/<path>`); omitting resources is an explicit exclusive editor reservation.
+Use `renew` or `release` for that session's reservation. `lease_seconds` is 30–900 (default 300).
+
+`snapshot` requires `resources`. Call it before reading the state used for an edit, then
+pass `data.revision` to `batch_execute(expected_revision=...)`. A stale snapshot returns
+`conflict` without executing the batch. Tokens are single-use, session-bound and expire
+on reload or after ten minutes. Include all read dependencies; snapshots are not rollback.
 
 ### set_active_instance
 
@@ -117,7 +131,7 @@ manage_scene(
 manage_camera(action="screenshot")
 
 # Screenshot with inline image (base64 PNG returned to AI)
-manage_scene(
+manage_camera(
     action="screenshot",
     camera="MainCamera",         # str, optional - camera name, path, or instance ID
     include_image=True,          # bool, default False - return base64 PNG inline
@@ -125,7 +139,7 @@ manage_scene(
 )
 
 # Batch surround — contact sheet of 6 fixed angles (front/back/left/right/top/bird_eye)
-manage_scene(
+manage_camera(
     action="screenshot",
     batch="surround",            # str - "surround" for 6-angle contact sheet
     max_resolution=256           # int - per-tile resolution cap
@@ -133,7 +147,7 @@ manage_scene(
 # Returns: single composite contact sheet image with labeled tiles
 
 # Batch surround centered on a specific target
-manage_scene(
+manage_camera(
     action="screenshot",
     batch="surround",
     view_target="Player",        # str|int|list[float] - center surround on this target
@@ -141,7 +155,7 @@ manage_scene(
 )
 
 # Batch orbit — configurable multi-angle grid around a target
-manage_scene(
+manage_camera(
     action="screenshot",
     batch="orbit",               # str - "orbit" for configurable angle grid
     view_target="Player",        # str|int|list[float] - target to orbit around
@@ -154,7 +168,7 @@ manage_scene(
 # Returns: single composite contact sheet (angles × elevations tiles in a grid)
 
 # Positioned screenshot (temp camera at viewpoint, no file saved)
-manage_scene(
+manage_camera(
     action="screenshot",
     view_target="Enemy",         # str|int|list[float] - target to aim at
     view_position=[0, 10, -10],  # list[float], optional - camera position
@@ -1161,6 +1175,39 @@ manage_graphics(action="feature_reorder", order=[2, 0, 1])
 - `mcpforunity://scene/volumes` — Lists all Volume components in the scene with their profiles and effects
 - `mcpforunity://rendering/stats` — Current rendering performance counters
 - `mcpforunity://pipeline/renderer-features` — URP renderer features on the active renderer
+
+---
+
+## Animation Tools
+
+### manage_animation
+
+Enable the optional group with `manage_tools(action="activate", group="animation")` before calling the tool over HTTP. Use `manage_tools(action="list_groups")` to check visibility. Actions use one of three prefixes:
+
+| Prefix | Actions (append to prefix) |
+|---|---|
+| `animator_` | `get_info`, `get_parameter`, `play`, `crossfade`, `set_parameter`, `set_speed`, `set_enabled` |
+| `controller_` | `create`, `add_state`, `add_transition`, `add_parameter`, `get_info`, `assign`, `add_layer`, `remove_layer`, `set_layer_weight`, `create_blend_tree_1d`, `create_blend_tree_2d`, `add_blend_tree_child` |
+| `clip_` | `create`, `get_info`, `add_curve`, `set_curve`, `set_vector_curve`, `create_preset`, `assign`, `add_event`, `remove_event` |
+
+Pass `target` and optional `search_method` for scene objects; `clip_path` and `controller_path` are Assets-relative paths. Put action-specific keys in `properties` (a dict or JSON string); camelCase and supported snake_case aliases are accepted.
+
+```python
+manage_animation(action="animator_get_info", target="Player", search_method="by_name")
+manage_animation(action="animator_set_parameter", target="Player",
+                 properties={"parameterName": "Speed", "value": 1.5})
+manage_animation(action="animator_play", target="Player", properties={"stateName": "Walk"})
+manage_animation(action="clip_set_vector_curve", clip_path="Assets/Animations/Move.anim",
+                 properties={"property": "localPosition", "type": "Transform",
+                             "keys": [{"time": 0, "value": [0, 0, 0]},
+                                      {"time": 1, "value": [0, 2, 0]}]})
+```
+
+`clip_create_preset` accepts `preset`, `duration`, `amplitude`, `loop`, and optional `offset`. Presets: `bounce`, `rotate`, `pulse`, `fade`, `shake`, `hover`, `spin`, `sway`, `bob`, `wiggle`, `blink`, `slide_in`, `elastic`, `grow`, `shrink`. Supplying `target` uses its local position as the offset unless an explicit offset is given. Creation fails if the asset already exists.
+
+Animator reads and controls can resolve an Animator on a child; inspect the returned `animatorGameObject` when targeting a parent. `clip_assign` uses legacy Animation when the target has no Animator, converting the clip to legacy. For Mecanim clips, create a controller, add a state with the clip, and assign the controller instead. AnimationEvents require a component on the animated object with a matching receiver method.
+
+See [animation workflows](workflows.md#animation-workflows) for a complete controller setup. The CLI exposes `unity-mcp animation`, including `clip` and `controller` subcommands; use `--help` for action options.
 
 ---
 

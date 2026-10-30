@@ -12,16 +12,17 @@ description: "Coordinate agents sharing Unity."
 
 ## Description
 
-Coordinate agents sharing Unity. Acquire BEFORE inspecting/editing a task; keep ownership through compile/test/verification, then release. Use status to see owner and recent agents; renew during long work. On editor_owned wait retry_after_ms. After expiry/reacquire, re-read scene and files. Never force-unlock another agent or bypass through shell edits.
+Ordinary Unity calls are scheduled automatically; do not acquire for a whole task. Use status for agents/reservations. For a short multi-call sequence, acquire resources (object:<instance ID> or asset:Assets/<path>), then release. Omitting resources requests exclusive editor ownership. Snapshot resources BEFORE inspecting and pass the returned revision as batch_execute.expected_revision to reject stale edits. On conflict re-snapshot/re-read; on editor_queue_timeout no command ran.
 
 ## Parameters
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `action` | `Literal['status', 'acquire', 'renew', 'release']` | — | Ownership action |
+| `action` | `Literal['status', 'snapshot', 'acquire', 'renew', 'release']` | — | Status, optimistic snapshot, or explicit reservation |
 | `agent_name` | `str \| None` | — | Display name, e.g. Claude - vehicle task |
 | `task` | `str \| None` | — | Short description of the work |
 | `lease_seconds` | `int` | — | Idle lease, 30-900 seconds; owner commands renew it |
+| `resources` | `list[str] \| None` | — | 1–32 object:/asset: selectors. Required for snapshot; omitted acquire reserves the whole editor. |
 
 ## Returns
 

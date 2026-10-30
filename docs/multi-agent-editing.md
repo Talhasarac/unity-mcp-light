@@ -1,92 +1,133 @@
-# Working with multiple agents in one Unity Editor
+# Multiple agents in one Unity Editor
 
-Unity has one active editor state. Separate client connections do not provide separate
-scenes, Play Mode, compilation or Undo histories. A task owns the editor from its first
-inspection through the final verification/save. A command queue alone cannot protect that
-sequence.
+Ordinary calls no longer require `acquire` or `release`. Each request is scheduled on
+Unity's main thread, and protection ends when the actual handler completes, not when
+an agent finishes thinking about its task. Session identity and retry deduplication remain.
 
-## Agent workflow
+## Normal workflow
 
-1. Select the intended instance using `set_active_instance` when multiple editors are open.
-2. Call `manage_editor_session(action="acquire", agent_name="Claude - vehicles", task="Tune steering")`.
-3. Read current scene/files and readiness resources. Do not reuse an observation from before acquisition.
-4. Edit, compile, check console, test, verify, and save. Keep ownership throughout.
-5. Call `manage_editor_session(action="release")` even if the task failed, once Unity is idle.
+1. Select the intended instance when multiple editors are connected.
+2. Inspect the relevant objects/assets, then issue small, focused commands.
+3. Use instance IDs for scene object edits. Unrelated agents can continue between calls.
+4. For an edit based on an observation that must remain current, use a guarded batch below.
 
-The default lease expires after 300 seconds without an authorized request. Choose 30–900
-seconds with `lease_seconds` on acquisition; use `action="renew"` during long work. Do not
-hold the editor while waiting for human input. In-flight operations, compilation, asset
-updating and tests prevent handover. Domain reload preserves ownership and gives the owner
-at least 60 seconds to reconnect. Server-side tokens are attached automatically to MCP calls.
+Conflicting calls wait in Unity's queue for up to 10 seconds. Older executable conflicts
+precede later conflicts; unrelated work can pass a request blocked by a reservation.
+`editor_queue_timeout` with `executed=false` means the handler never started and can be
+resubmitted. A transport timeout does NOT make that guarantee. Cancellation removes queued
+work, but never unlocks an executing handler. Diagnostics remain available during busy work.
 
-| Response | Agent action |
-|---|---|
-| `editor_owned` | Another session owns Unity. Wait `data.retry_after_ms`; use `status` and back off. |
-| `editor_busy` | Wait for the ongoing operation, compilation or tests; poll editor state. |
-| `editor_lease_required` | Acquire again, then re-read scene/files and discard stale object IDs. |
-| `agent_identity_required` | Update/restart both sides; CLI callers must supply an agent ID. |
+This is concurrent task progress, not multithreaded Unity API execution. Batch entries
+always execute sequentially, even when `parallel=true` is supplied.
 
-Never work around a denial with shell edits, a second bridge or a force-unlock. Unknown
-custom tools and entire batches are protected by default. Registered resources, status,
-console reads and test-job polling remain available as diagnostics. Their observations can
-change while another agent works and do not authorize edits.
+## Guard an observation against stale edits
 
-Each independent agent needs its own MCP session. Agents/subagents sharing one session are
-one owner; their parent must serialize their workflows. The dispatcher also rejects
-overlapping protected commands from the same owner. For multiple operations use a batch;
-its nested handlers execute under the outer lease.
+Take a snapshot **before** reading the state used to decide your edit:
 
-## Unity window
-
-Open **Window → Unity MCP Light → Connect** and find **Agents & editor ownership**:
-
-- HTTP bridge connection and actual open stdio socket count; hover for remote endpoints.
-- Current owner's display name, task and remaining idle lease time.
-- Up to 64 recently observed sessions, their transport, waiting/idle/inactive state and last request.
-- **Copy agent instructions** to paste into another agent's conversation.
-- **Release ownership** for human recovery of an abandoned task, disabled during running work.
-
-HTTP agents are MCP sessions, not individual bridge sockets. Unity sees their identity on
-the first command forwarded to it. Last-seen time does not prove a client is still connected.
-Idle leases expire automatically. Recovery revokes the old token; it does not cancel a
-running operation or undo changes. A genuinely hung handler must be diagnosed rather than
-granting another agent simultaneous write access.
-
-## Migration
-
-Update the Python server and Unity package together, restart the MCP clients, and use
-**Install Skills** again. Older agents receive an actionable lease-required error. HTTP is
-recommended for several agents, with one shared server. Stdio now keeps multiple clients
-open; a new socket no longer disconnects the previous one. Identical commands from two
-agents are distinct requests. A reconnect resend is recognized only by session ID,
-request ID and the identical payload.
-
-Do not simply increase timeouts: that cannot repair competing scene edits. Avoid starting
-two HTTP servers on the same port. Separate Unity copies/worktrees and explicit instance
-routing remain an alternative for independent work.
-
-## CLI and REST
-
-Use a unique `--agent-id` / `UNITY_MCP_AGENT_ID` for each agent. Acquire with:
-
-```sh
-unity-mcp --agent-id vehicle-agent --format json session acquire --name "Vehicle agent" --task "Tune steering"
+```python
+observation = manage_editor_session(
+    action="snapshot", resources=["object:12345", "asset:Assets/Materials/Body.mat"]
+)
+# Now read the object/components/material through their normal tools/resources.
+batch_execute(
+    expected_revision=observation["data"]["revision"],
+    fail_fast=True,
+    commands=[{"tool": "manage_gameobject", "params": {
+        "action": "modify", "target": 12345, "search_method": "by_id",
+        "position": [1, 0, 0]
+    }}]
+)
 ```
 
-Use the returned `data.lease_id` as `--lease-id` / `UNITY_MCP_LEASE_ID` for subsequent
-commands, renewals and release. Do not share IDs or tokens between agents. REST
-`/api/command` accepts `agent_id` and `lease_id` alongside `type`, `params` and
-`unity_instance`. No token is needed for `session status`. MCP clients handle token
-bookkeeping automatically; CLI tokens deliberately are not written to a shared global file.
+The dispatcher reserves the batch's effects and its snapshot read dependencies, checks
+fingerprints, then executes. A changed/deleted resource returns `conflict` before any
+batch command runs. Snapshot tokens belong to one session, are single-use, expire after
+10 minutes, and are invalidated by domain reload. Keep at most a small number outstanding;
+the cache holds 128 observations. Include every object/asset your decision depends on.
 
-## Boundaries
+Object fingerprints cover the subtree's serialized objects/components and ancestor
+transforms. Asset fingerprints cover the exact file, `.meta`, imported dependency hash
+and live serialized asset values. They do not cover arbitrary static/runtime state,
+unlisted referenced assets, filesystem changes after the check, or human edits during
+an asynchronous batch. A guarded batch provides no rollback: later command failure can
+leave earlier commands applied. A snapshot is optional; unguarded calls do not detect
+an earlier stale observation.
 
-This is coordination among trusted local/project clients, not a security sandbox. MCP cannot
-intercept filesystem writes from Claude's shell, a different IDE, Git or a human editing
-Unity. The owner must also coordinate shared-folder writes. Let other agents research/review
-or prepare patches in separate workspaces, then integrate them under ownership. Two Git
-branches in one working directory do not isolate files. Re-read state after human edits.
+## Reserve resources for a short sequence
 
-A timeout means an operation may still be running or may have completed. Check the actual
-state before repeating a non-idempotent mutation; request deduplication is not a durable
-transaction log. Ownership does not provide rollback, distributed file locks or scene merges.
+```python
+manage_editor_session(action="acquire", agent_name="Vehicle agent", task="Adjust pose",
+                      resources=["object:12345"], lease_seconds=60)
+# Re-read, edit, then release. Do not wait for human input while holding a reservation.
+manage_editor_session(action="release")
+```
+
+Selectors are `object:<instance ID>` or `asset:Assets/<exact path>`, 1–32 per reservation.
+Acquisition is all-or-nothing. Each session may hold one reservation per editor; release
+before changing its resource set. An object scope includes descendants, so parent/child
+edits conflict and separate branches do not. Idle reservations prevent overlapping writes;
+inspections can read between operations but do not see an isolated transaction snapshot.
+In-flight writes also block overlapping reads until the actual operation completes.
+
+The first audited narrow write actions are plain `manage_gameobject modify` transform
+edits by instance ID and `manage_material set_material_color/set_material_shader_property`
+with exact `Assets/...mat` paths. Object/component resources have narrow read scopes.
+Other reads use conservative editor-wide read scopes. Structural edits, arbitrary component
+setters, asset imports/saves, custom code/tools and unclassified actions use editor-wide
+write scopes for their **operation**, since their side effects may cross resource boundaries.
+Consequently a broad operation may wait for a scoped reservation even if its apparent
+target differs. Keep reservations short and prefer guarded batches when possible.
+
+Acquire **without** resources only for a sequence requiring exclusive editor state,
+such as enter Play Mode → inspect runtime → stop, or open a Prefab Stage → edit → close.
+The old exclusive workflow remains supported, but is not the default. Compilation,
+asset updating, queued/running builds, light baking, tests and Play Mode transitions still block unsafe execution.
+Compilation requests also reserve a bounded start grace before the pipeline becomes active.
+Build/bake status and cancellation remain available while those jobs run.
+Run compilation, build/test starts, baking and Play Mode transitions as standalone calls, not batch entries. A reservation
+expires after 30–900 seconds of inactivity (default 300); running work prevents expiry.
+Use `renew` during long work. Reload preserves reservations with a 60-second recovery grace.
+Stale tokens cannot silently turn into automatic writes: reacquire, reread, then release.
+
+## Visibility and recovery
+
+`manage_editor_session(action="status")` and **Connect → Agents & editor ownership** show
+recent sessions, reservations, executing operations and editor readiness. Connection counts
+are not agent counts. Human recovery can release abandoned reservations only while idle;
+it revokes tokens, without cancelling operations or undoing changes.
+
+Independent agents should use independent MCP sessions. Shared-session callers are still
+serialized when their operation footprints conflict, but share explicit reservations and
+snapshot credentials; their parent must coordinate any cross-call workflow.
+
+## CLI, REST and migration
+
+Update the Python server, Unity package and bundled skill together while Unity is idle;
+restart clients to discard old schemas/tokens. This version uses a new reservation state
+format, so release old leases before installing. No automatic deployment is performed.
+
+CLI callers still supply a unique `--agent-id` / `UNITY_MCP_AGENT_ID`. Ordinary commands
+need no lease. Explicit reservations return a token for `--lease-id` / `UNITY_MCP_LEASE_ID`:
+
+```sh
+unity-mcp --agent-id vehicle-agent session acquire --resource object:12345 --lease-seconds 60
+unity-mcp --agent-id vehicle-agent session snapshot --resource object:12345
+unity-mcp --agent-id vehicle-agent batch run edits.json --expected-revision REVISION
+```
+
+REST `/api/command` uses the same `agent_id`/`lease_id` envelope and parameters. MCP clients
+manage reservation credentials automatically. Snapshots require one stable agent identity.
+
+MCP does not intercept terminal/file edits, Git, project callbacks or human Unity actions.
+Coordinate shared file writes separately. Separate workspaces remain appropriate for code
+preparation; two branches in a shared working directory do not isolate files. Saving a scene
+or all dirty assets saves shared changes, not just the caller's contribution. Undo history
+is shared too; use an exclusive sequence when those semantics matter.
+
+## Verification handoff (not run)
+
+The added state/dispatcher tests cover automatic calls, scoped conflicts, hierarchy overlap,
+stale fencing, cancellation, expiry, reload persistence and snapshot conflicts. Run the Python
+session/batch tests and Unity coordination EditMode tests in a disposable test project, then
+the multi-agent smoke harness. No builds, tests, validation commands or live Unity checks
+were run while implementing this change.

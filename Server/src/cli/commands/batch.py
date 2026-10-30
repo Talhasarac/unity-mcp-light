@@ -19,10 +19,11 @@ def batch():
 
 @batch.command("run")
 @click.argument("file", type=click.Path(exists=True))
-@click.option("--parallel", is_flag=True, help="Execute read-only commands in parallel.")
+@click.option("--parallel", is_flag=True, help="Legacy hint; Unity always executes commands sequentially.")
 @click.option("--fail-fast", is_flag=True, help="Stop on first failure.")
+@click.option("--expected-revision", default=None, help="Revision from session snapshot, taken before inspection.")
 @handle_unity_errors
-def batch_run(file: str, parallel: bool, fail_fast: bool):
+def batch_run(file: str, parallel: bool, fail_fast: bool, expected_revision: str | None = None):
     """Execute commands from a JSON file.
 
     The JSON file should contain an array of command objects with 'tool' and 'params' keys.
@@ -57,11 +58,13 @@ def batch_run(file: str, parallel: bool, fail_fast: bool):
         print_error("JSON file must contain an array of commands")
         sys.exit(1)
 
-    if len(commands) > 40:
-        print_error(f"Maximum 40 commands per batch, got {len(commands)}")
+    if len(commands) > 100:
+        print_error(f"Hard maximum 100 commands per batch (Unity may configure a lower limit), got {len(commands)}")
         sys.exit(1)
 
     params: dict[str, Any] = {"commands": commands}
+    if expected_revision is not None:
+        params["expectedRevision"] = expected_revision
     if parallel:
         params["parallel"] = True
     if fail_fast:
@@ -74,7 +77,7 @@ def batch_run(file: str, parallel: bool, fail_fast: bool):
 
     if isinstance(result, dict):
         results = result.get("data", {}).get("results", [])
-        succeeded = sum(1 for r in results if r.get("success"))
+        succeeded = sum(1 for r in results if r.get("callSucceeded"))
         failed = len(results) - succeeded
 
         if failed == 0:
@@ -86,10 +89,11 @@ def batch_run(file: str, parallel: bool, fail_fast: bool):
 
 @batch.command("inline")
 @click.argument("commands_json")
-@click.option("--parallel", is_flag=True, help="Execute read-only commands in parallel.")
+@click.option("--parallel", is_flag=True, help="Legacy hint; Unity always executes commands sequentially.")
 @click.option("--fail-fast", is_flag=True, help="Stop on first failure.")
+@click.option("--expected-revision", default=None, help="Revision from session snapshot, taken before inspection.")
 @handle_unity_errors
-def batch_inline(commands_json: str, parallel: bool, fail_fast: bool):
+def batch_inline(commands_json: str, parallel: bool, fail_fast: bool, expected_revision: str | None = None):
     """Execute commands from inline JSON.
 
     \\b
@@ -105,11 +109,13 @@ def batch_inline(commands_json: str, parallel: bool, fail_fast: bool):
 
     commands = parse_json_list_or_exit(commands_json, "commands")
 
-    if len(commands) > 40:
-        print_error(f"Maximum 40 commands per batch, got {len(commands)}")
+    if len(commands) > 100:
+        print_error(f"Hard maximum 100 commands per batch (Unity may configure a lower limit), got {len(commands)}")
         sys.exit(1)
 
     params: dict[str, Any] = {"commands": commands}
+    if expected_revision is not None:
+        params["expectedRevision"] = expected_revision
     if parallel:
         params["parallel"] = True
     if fail_fast:

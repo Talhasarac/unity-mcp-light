@@ -138,22 +138,14 @@ namespace MCPForUnity.Editor.Helpers
                 catch (Exception e)
                 {
                     McpLog.Warn($"{ProductInfo.McpServerName}: Failed to read Codex config '{configPath}': {e.Message}");
-                    existingToml = string.Empty;
+                    return $"Cannot read Codex config '{configPath}': {e.Message}. The file has not been changed.";
                 }
             }
 
-            string existingCommand = null;
-            string[] existingArgs = null;
-            if (!string.IsNullOrWhiteSpace(existingToml))
-            {
-                CodexConfigHelper.TryParseCodexServer(existingToml, out existingCommand, out existingArgs);
-            }
-
-            string uvxPath = MCPServiceLocator.Paths.GetUvxPath();
-            if (uvxPath == null)
-            {
+            bool useHttp = EditorConfigurationCache.Instance.UseHttpTransport;
+            string uvxPath = useHttp ? null : MCPServiceLocator.Paths.GetUvxPath();
+            if (!useHttp && string.IsNullOrEmpty(uvxPath))
                 return "uv package manager not found. Please install uv first.";
-            }
 
             string updatedToml = CodexConfigHelper.UpsertCodexServerBlock(existingToml, uvxPath);
 

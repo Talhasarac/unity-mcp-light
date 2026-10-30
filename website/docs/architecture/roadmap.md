@@ -1,3 +1,5 @@
+> **Upstream history, not the Unity MCP Light API.** This page includes removed or proposed tools. Use the installed MCP schema and `manage_tools(action="list_groups")` for available capabilities; consult the Light README for removed tools.
+
 # Unity MCP Feature Roadmap 2026
 
 ## Research Summary

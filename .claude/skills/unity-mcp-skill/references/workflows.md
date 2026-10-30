@@ -12,6 +12,7 @@ Common workflows and patterns for effective Unity-MCP usage.
 - [Debugging Workflows](#debugging-workflows)
 - [UI Creation Workflows](#ui-creation-workflows)
 - [Camera & Cinemachine Workflows](#camera--cinemachine-workflows)
+- [Animation Workflows](#animation-workflows)
 - [Graphics & Rendering Workflows](#graphics--rendering-workflows)
 - [Package Deployment Workflows](#package-deployment-workflows)
 - [API Verification Workflows](#api-verification-workflows)
@@ -105,20 +106,13 @@ batch_execute(commands=[
 ])
 ```
 
-### Script Overwrites with `manage_script(action="update")`
+### Editing an Existing Script
 
-When a generated script needs to be rewritten (e.g., to add auto-wiring logic), use `update` instead of deleting and recreating:
-
-```python
-manage_script(
-    action="update",
-    path="Assets/Scripts/MyScript.cs",
-    contents="using UnityEngine;\n\npublic class MyScript : MonoBehaviour { ... }"
-)
-# manage_script update auto-triggers import + compile — just wait and check console
-# Read mcpforunity://editor/state → wait until is_compiling == false
-read_console(types=["error"], count=10)
-```
+The public `manage_script` schema accepts `create`, `read` and `delete`; it does not accept
+`update`. Use `script_apply_edits` for structured changes or `apply_text_edits` for exact
+ranges. Read the current text first, and supply `precondition_sha256` to `apply_text_edits`
+from that observation to reject concurrent edits. Preserve the existing script and its `.meta`.
+Follow the active schema for edit shapes, and the project's rules for compilation/verification.
 
 ---
 
@@ -182,7 +176,7 @@ for x in range(5):
         })
 
 # Execute in batches of 25
-batch_execute(commands=commands[:25], parallel=True)
+batch_execute(commands=commands[:25])
 ```
 
 ### Clone and Arrange Objects
@@ -1581,6 +1575,37 @@ manage_camera(action="screenshot", capture_source="scene_view",
 
 ---
 
+## Animation Workflows
+
+### Create a Preset Clip and Play It Through an Animator
+
+```python
+manage_tools(action="activate", group="animation")
+
+# Create a looping clip around the object's current local position.
+manage_animation(action="clip_create_preset", target="Product",
+                 clip_path="Assets/Animations/ProductHover.anim",
+                 properties={"preset": "hover", "duration": 2, "amplitude": 0.1, "loop": True})
+
+# Keep the clip compatible with Mecanim by adding it to a controller state.
+manage_animation(action="controller_create", controller_path="Assets/Animations/Product.controller")
+manage_animation(action="controller_add_state", controller_path="Assets/Animations/Product.controller",
+                 clip_path="Assets/Animations/ProductHover.anim",
+                 properties={"stateName": "Hover", "isDefault": True})
+manage_animation(action="controller_assign", target="Product",
+                 controller_path="Assets/Animations/Product.controller")
+manage_animation(action="controller_get_info", controller_path="Assets/Animations/Product.controller")
+
+# Playback and Animator state queries require Play mode.
+manage_editor(action="play")
+manage_animation(action="animator_play", target="Product", properties={"stateName": "Hover"})
+manage_animation(action="animator_get_info", target="Product")
+```
+
+Use unique asset paths or inspect existing clips/controllers before creation. For a character, inspect its existing controller and parameters before adding states or transitions. Add transition conditions through `properties.conditions` and layer/blend tree parameters through `properties`; see [animation tools](tools-reference.md#animation-tools). Use `manage_editor(action="stop")` when the requested preview is finished.
+
+---
+
 ## Graphics & Rendering Workflows
 
 ### Setting Up Post-Processing
@@ -1825,7 +1850,7 @@ for enemy_id in enemies["ids"]:
 
 # Execute in batches
 for i in range(0, len(commands), 25):
-    batch_execute(commands=commands[i:i+25], parallel=True)
+    batch_execute(commands=commands[i:i+25])
 ```
 
 ### Mass Object Creation with Variations
@@ -1846,7 +1871,7 @@ for i in range(20):
         }
     })
 
-batch_execute(commands=commands, parallel=True)
+batch_execute(commands=commands)
 ```
 
 ### Cleanup Pattern

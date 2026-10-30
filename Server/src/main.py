@@ -311,12 +311,21 @@ Targeting Unity instances:
 
 Important Workflows:
 
-Shared editor ownership (required, even for one agent):
-- Call manage_editor_session(action="acquire", agent_name="your role", task="short task description") BEFORE inspecting a scene or changing project files.
-- Keep ownership for the whole read/edit/compile/test/verify/save sequence. Commands renew the idle lease; use action="renew" during long work (default 300 seconds).
-- If editor_owned/editor_busy is returned, wait data.retry_after_ms, inspect action="status" or editor state, then retry. Do not restart the bridge, force-unlock, or edit files through the shell to bypass ownership.
-- After expiry, reconnect or reacquisition, re-read objects/files and discard old instance IDs and assumptions. Release with action="release" after verification, including on task failure when Unity is idle.
-- Independent agents may research or prepare code in separate workspaces. Shared-folder edits, play/stop, scene changes and compilation must belong to the owner. This lock cannot intercept external filesystem writes or a human using Unity.
+Shared editor coordination:
+- Ordinary tools are automatically scheduled on Unity's main thread. Do not acquire ownership for an entire task.
+- Unrelated work can progress between calls. Audited transform/material edits have narrow scopes; unknown or globally affecting actions are exclusive only while executing. Compilation/tests/editor transitions still gate unsafe work.
+- For a short multi-call sequence, use manage_editor_session(action="acquire", resources=["object:<instance ID>", "asset:Assets/<path>"]), then release. Omit resources only when the entire editor must remain exclusive.
+- To protect an edit based on an earlier observation: take manage_editor_session(action="snapshot", resources=[...]) BEFORE inspecting, then use batch_execute(expected_revision=<returned revision>, commands=[...]). Include every read dependency. A conflict runs no commands: take a fresh snapshot and re-read.
+- On editor_queue_timeout with executed=false, no handler ran. A transport timeout is different: the handler might still be executing; check actual state before retrying a mutation.
+- After scene changes or domain reload, re-resolve instance IDs and discard old snapshot tokens. Expired/revoked reservations require reacquisition and fresh reads.
+- Human edits and filesystem writes are not intercepted. Coordinate shared file writes separately; never force-unlock running work.
+
+Available capabilities:
+- Use the active tool schema as the authority for tool names, action values and parameter names. Old upstream examples are not this Light fork's API.
+- Use manage_tools(action="list_groups") to discover the installed tool names and optional groups. Activating a group does not restore tools removed from Light.
+- Screenshots use manage_camera(action="screenshot" or "screenshot_multiview"), not manage_scene.
+- manage_script accepts create/read/delete. Edit with apply_text_edits or script_apply_edits, not manage_script(action="update").
+- Batch entries execute Unity-side handlers, not arbitrary Python-only tools. Session management, group activation and instance routing belong outside a batch. Batch commands always execute sequentially; parallel is a legacy hint.
 
 Resources vs Tools:
 - Use RESOURCES to read editor state (mcpforunity://editor/state, mcpforunity://project/info, mcpforunity://project/tags, mcpforunity://tests, etc)
@@ -336,7 +345,7 @@ Script Management:
 
 Scene Setup:
 - Always include a Camera and main Light (Directional Light) in new scenes
-- Create prefabs with `manage_asset` for reusable GameObjects
+- Create a prefab from a scene object with `manage_prefabs(action="create_from_gameobject")`
 - Use `manage_scene` to load, save, and query scene information
 
 Path Conventions:
@@ -363,7 +372,7 @@ Payload sizing & paging (important):
 - `manage_scene(action="get_hierarchy")`:
   - Use `page_size` + `cursor` and follow `next_cursor` until null.
   - `page_size` is **items per page**; recommended starting point: **50**.
-- `manage_gameobject(action="get_components")`:
+- Read `mcpforunity://scene/gameobject/{{instance_id}}/components` (substitute the actual instance ID):
   - Start with `include_properties=false` (metadata-only) and small `page_size` (e.g. **10-25**).
   - Only request `include_properties=true` when needed; keep `page_size` small (e.g. **3-10**) to bound payloads.
 - `manage_asset(action="search")`:

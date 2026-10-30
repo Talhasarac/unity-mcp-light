@@ -124,6 +124,18 @@ namespace MCPForUnity.Editor.Tools.Build
         private static readonly Dictionary<string, BatchJob> _batchJobs = new();
         private static BuildJob _lastCompletedJob;
 
+        internal static bool HasActiveJobs
+        {
+            get
+            {
+                foreach (var job in _buildJobs.Values)
+                    if (job.State == BuildJobState.Pending || job.State == BuildJobState.Building) return true;
+                foreach (var job in _batchJobs.Values)
+                    if (job.State == BuildJobState.Pending || job.State == BuildJobState.Building) return true;
+                return false;
+            }
+        }
+
         public static string CreateJobId() => $"build-{Guid.NewGuid():N}".Substring(0, 16);
         public static string CreateBatchId() => $"batch-{Guid.NewGuid():N}".Substring(0, 16);
 

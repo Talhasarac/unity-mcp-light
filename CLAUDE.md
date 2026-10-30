@@ -38,12 +38,15 @@ MCP tools call Unity via WebSocket (`send_with_unity_instance`). CLI commands ca
 
 - **Stdio**: Separate Python process per client. Multiple TCP connections may coexist; reconnect deduplication requires the same session and request ID.
 - **HTTP**: One shared Python server and WebSocket hub at `/hub/plugin`. MCP session IDs isolate routing and ownership credentials.
-- **Both**: Unity's `EditorSessionCoordinator` enforces an expiring, fenced editor lease. Acquire with `manage_editor_session` before inspecting/editing a task, keep it through compilation/tests/verification, and release afterward. See the installed skill for the full workflow. Agents sharing one MCP session must be coordinated by their parent.
+- **Both**: Unity's dispatcher schedules ordinary operations automatically. `EditorSessionCoordinator`
+  tracks optional resource reservations; acquisition without resources is explicitly exclusive.
+  `EditorCommandAccess` is the conservative action-effect classifier. Unclassified writes affect
+  the whole editor for their operation, not the agent's task. `EditorRevisionSnapshots` supports
+  session-bound, single-use guarded batches. See `docs/multi-agent-editing.md`.
 
-The lease does not intercept terminal/file writes or human actions in Unity. When editing a
-live Unity project, acquire ownership before changing shared files. Parallel code preparation
-must use separate workspaces. Status, resource reads and console/test polling are diagnostic
-exceptions; unknown/custom commands and batches require ownership.
+All handlers enter on the main thread. In-flight reservations end on actual completion, not
+caller cancellation. A queued request that times out before execution reports `executed=false`.
+MCP does not intercept terminal/file writes, human edits or arbitrary project callbacks.
 
 ## Code Philosophy
 

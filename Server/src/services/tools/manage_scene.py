@@ -14,9 +14,9 @@ from services.tools.preflight import preflight
 @mcp_for_unity_tool(
     description=(
         "Performs CRUD operations on Unity scenes. "
-        "Read-only actions: get_hierarchy, get_active, get_build_settings, get_loaded_scenes, scene_view_frame. "
+        "Read-only actions: get_hierarchy, get_active, get_build_settings, get_loaded_scenes. "
         "Modifying actions: create (with optional template), load (with optional additive flag), save, "
-        "close_scene, set_active_scene, move_to_scene, validate (with optional auto_repair). "
+        "close_scene, set_active_scene, scene_view_frame, move_to_scene, validate (with optional auto_repair). "
         "For build settings management (add/remove/enable scenes), use manage_build(action='scenes'). "
         "For screenshots, use manage_camera (screenshot, screenshot_multiview actions)."
     ),

@@ -1,32 +1,30 @@
-# MCP for Unity Server
+# Unity MCP Light Server — v1.0.0
 
 [![MCP](https://badge.mcpx.dev?status=on 'MCP Enabled')](https://modelcontextprotocol.io/introduction)
 [![python](https://img.shields.io/badge/Python-3.10+-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-MIT-red.svg 'MIT License')](https://opensource.org/licenses/MIT)
 [![Discord](https://img.shields.io/badge/discord-join-red.svg?logo=discord&logoColor=white)](https://discord.gg/y4p8KfzrN4)
-[![PyPI version](https://img.shields.io/pypi/v/mcpforunityserver?label=PyPI)](https://pypi.org/project/mcpforunityserver/)
-[![Downloads](https://static.pepy.tech/badge/mcpforunityserver)](https://pepy.tech/project/mcpforunityserver)
 
 Model Context Protocol server for Unity Editor integration. Control Unity through natural language using AI assistants like Claude, Cursor, and more.
 
-**Maintained by [Coplay](https://www.coplay.dev/?ref=unity-mcp)** - This project is not affiliated with Unity Technologies.
+**Unity MCP Light v1 rewrite.** This fork uses independent version numbering. Based on [MCP for Unity by Coplay](https://github.com/CoplayDev/unity-mcp); original attribution and license notices are retained. This project is not affiliated with Unity Technologies.
 
 💬 **Join our community:** [Discord Server](https://discord.gg/y4p8KfzrN4)
 
-**Required:** Install the [Unity MCP Plugin](https://github.com/CoplayDev/unity-mcp?tab=readme-ov-file#-step-1-install-the-unity-package) to connect Unity Editor with this MCP server. You also need `uvx` (requires [uv](https://docs.astral.sh/uv/)) to run the server.
+**Required:** Install the [Unity MCP Plugin](https://github.com/Talhasarac/unity-mcp-light#readme) to connect Unity Editor with this MCP server. You also need `uvx` (requires [uv](https://docs.astral.sh/uv/)) to run the server.
 
 ---
 
 ## Installation
 
-### Option 1: PyPI
+### Option 1: Light from GitHub
 
-Install and run directly from PyPI using `uvx`.
+Install this fork using `uvx`. The PyPI package is upstream, not Light. The examples below pin the matching `v1.0.0` server.
 
 **Run Server (HTTP):**
 
 ```bash
-uvx --from mcpforunityserver mcp-for-unity --transport http --http-url http://localhost:8080
+uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.0#subdirectory=Server" mcp-for-unity --transport http --http-url http://localhost:8080
 ```
 
 **MCP Client Configuration (HTTP):**
@@ -34,7 +32,7 @@ uvx --from mcpforunityserver mcp-for-unity --transport http --http-url http://lo
 ```json
 {
   "mcpServers": {
-    "UnityMCP": {
+    "unity-mcp-light": {
       "url": "http://localhost:8080/mcp"
     }
   }
@@ -46,11 +44,11 @@ uvx --from mcpforunityserver mcp-for-unity --transport http --http-url http://lo
 ```json
 {
   "mcpServers": {
-    "UnityMCP": {
+    "unity-mcp-light": {
       "command": "uvx",
       "args": [
         "--from",
-        "mcpforunityserver",
+        "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.0#subdirectory=Server",
         "mcp-for-unity",
         "--transport",
         "stdio"
@@ -62,16 +60,16 @@ uvx --from mcpforunityserver mcp-for-unity --transport http --http-url http://lo
 
 ### Option 2: From GitHub Source
 
-Use this to run the latest released version from the repository. Change the version to `main` to run the latest unreleased changes from the repository.
+Use this configuration to run Light v1.0.0. Replace the tag with `main` only when intentionally following development changes.
 
 ```json
 {
   "mcpServers": {
-    "UnityMCP": {
+    "unity-mcp-light": {
       "command": "uvx",
       "args": [
         "--from",
-        "git+https://github.com/CoplayDev/unity-mcp@v10.3.0#subdirectory=Server",
+        "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.0#subdirectory=Server",
         "mcp-for-unity",
         "--transport",
         "stdio"
@@ -172,19 +170,19 @@ Telemetry:
 **Stdio (default):**
 
 ```bash
-uvx --from mcpforunityserver mcp-for-unity --transport stdio
+uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.0#subdirectory=Server" mcp-for-unity --transport stdio
 ```
 
 **HTTP (local):**
 
 ```bash
-uvx --from mcpforunityserver mcp-for-unity --transport http --http-host 127.0.0.1 --http-port 8080
+uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.0#subdirectory=Server" mcp-for-unity --transport http --http-host 127.0.0.1 --http-port 8080
 ```
 
 **HTTP (remote-hosted with API key auth):**
 
 ```bash
-uvx --from mcpforunityserver mcp-for-unity \
+uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.0#subdirectory=Server" mcp-for-unity \
   --transport http \
   --http-host 0.0.0.0 \
   --http-port 8080 \
@@ -196,7 +194,7 @@ uvx --from mcpforunityserver mcp-for-unity \
 **Disable telemetry:**
 
 ```bash
-DISABLE_TELEMETRY=1 uvx --from mcpforunityserver mcp-for-unity --transport stdio
+DISABLE_TELEMETRY=1 uvx --from "git+https://github.com/Talhasarac/unity-mcp-light@v1.0.0#subdirectory=Server" mcp-for-unity --transport stdio
 ```
 
 ---
@@ -223,7 +221,7 @@ When deploying the server as a shared remote service (e.g. for a team or Asset S
 ```json
 {
   "mcpServers": {
-    "UnityMCP": {
+    "unity-mcp-light": {
       "url": "http://remote-server:8080/mcp",
       "headers": {
         "X-API-Key": "<your-api-key>"

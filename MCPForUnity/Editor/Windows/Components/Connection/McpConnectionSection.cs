@@ -31,6 +31,10 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
         private EnumField transportDropdown;
         private VisualElement transportMismatchWarning;
         private Label transportMismatchText;
+        private Button repairConnectionButton;
+        private Label repairConnectionResult;
+        private bool repairInProgress;
+        public Func<Task<string>> RepairClientAsync { get; set; }
         private VisualElement versionMismatchWarning;
         private Label versionMismatchText;
         private VisualElement httpUrlRow;
@@ -92,6 +96,10 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
             transportDropdown = Root.Q<EnumField>("transport-dropdown");
             transportMismatchWarning = Root.Q<VisualElement>("transport-mismatch-warning");
             transportMismatchText = Root.Q<Label>("transport-mismatch-text");
+            repairConnectionButton = Root.Q<Button>("repair-connection-button");
+            repairConnectionResult = Root.Q<Label>("repair-connection-result");
+            if (repairConnectionButton != null)
+                repairConnectionButton.clicked += OnRepairConnectionClicked;
             versionMismatchWarning = Root.Q<VisualElement>("version-mismatch-warning");
             versionMismatchText = Root.Q<Label>("version-mismatch-text");
             httpUrlRow = Root.Q<VisualElement>("http-url-row");
@@ -679,6 +687,100 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
             UpdateHttpServerCommandDisplay();
         }
 
+        private void ShowRepairResult(string message)
+        {
+            if (repairConnectionResult == null) return;
+            repairConnectionResult.text = message;
+            repairConnectionResult.style.display = DisplayStyle.Flex;
+        }
+
+        private async void OnRepairConnectionClicked()
+        {
+            if (repairInProgress) return;
+            if (httpServerToggleInProgress || connectionToggleInProgress)
+            {
+                ShowRepairResult("A connection operation is already running. Wait for it to finish, then retry.");
+                return;
+            }
+            repairInProgress = true;
+            httpServerToggleInProgress = true;
+            connectionToggleInProgress = true;
+            Root.SetEnabled(false);
+            string configuredClient = null;
+            var transport = HttpEndpointUtility.GetCurrentServerTransport();
+            string endpoint = HttpEndpointUtility.GetMcpRpcUrl();
+            bool CanContinue() => Root.panel != null
+                && transport == HttpEndpointUtility.GetCurrentServerTransport()
+                && endpoint == HttpEndpointUtility.GetMcpRpcUrl();
+            try
+            {
+                if (RepairClientAsync == null)
+                    throw new InvalidOperationException("Client Configuration is unavailable. Reopen the MCP window.");
+                ShowRepairResult("Updating the selected client's configuration...");
+                configuredClient = await RepairClientAsync();
+                if (!CanContinue()) throw new InvalidOperationException("Connection settings changed. Click Repair Connection again.");
+
+                HttpBridgeReloadHandler.CancelPendingResume();
+                HttpAutoStartHandler.CancelPendingReconnect();
+                if (transport == ConfiguredTransport.HttpRemote
+                    && !HttpEndpointUtility.IsCurrentRemoteUrlAllowed(out string remotePolicyError))
+                    throw new InvalidOperationException(remotePolicyError);
+                var bridge = MCPServiceLocator.Bridge;
+                var server = MCPServiceLocator.Server;
+                if (transport == ConfiguredTransport.Http)
+                {
+                    if (!TryGetLocalHttpLaunchPolicy(out _, out string policyError))
+                        throw new InvalidOperationException(policyError ?? "The local server URL is invalid.");
+                    if (!server.IsLocalHttpServerReachable())
+                    {
+                        ShowRepairResult($"{configuredClient} configuration updated. Starting the local server...");
+                        // A launch can outlive a previous click or window. Reuse it instead of spawning another.
+                        if (!server.IsManagedServerLaunchProcessAlive() && !server.StartLocalHttpServer())
+                            throw new InvalidOperationException("The local server could not start. Check Dependencies and the Unity Console.");
+                        if (!await TryAutoStartSessionAsync(CanContinue))
+                            throw new InvalidOperationException("The server has not connected yet. Check the Unity Console, then retry Repair Connection.");
+                    }
+                }
+
+                if (!CanContinue()) throw new InvalidOperationException("Connection settings changed. Click Repair Connection again.");
+                ShowRepairResult($"{configuredClient} configuration updated. Connecting Unity...");
+                if (!bridge.IsRunning && !await bridge.StartAsync())
+                    throw new InvalidOperationException("Unity could not connect. Check the server URL and, for remote servers, the API key.");
+                var result = await bridge.VerifyAsync();
+                if (!result.Success || !result.PingSucceeded)
+                {
+                    // Recover a stale Unity session without stopping the shared HTTP server.
+                    if (!CanContinue()) throw new InvalidOperationException("Connection settings changed. Click Repair Connection again.");
+                    await bridge.StopAsync();
+                    if (!CanContinue()) throw new InvalidOperationException("Connection settings changed. Click Repair Connection again.");
+                    if (!await bridge.StartAsync())
+                        throw new InvalidOperationException("Unity could not reconnect to the server.");
+                    result = await bridge.VerifyAsync();
+                }
+                if (!result.Success || !result.PingSucceeded)
+                    throw new InvalidOperationException(result.Message ?? "The Unity bridge did not respond.");
+                if (!CanContinue()) throw new InvalidOperationException("Connection settings changed. Click Repair Connection again.");
+                ShowRepairResult($"{configuredClient} configuration updated; Unity bridge is ready. "
+                    + $"Restart {configuredClient} or reconnect its MCP server to reload the settings. "
+                    + "The client's connection has not been verified.");
+            }
+            catch (Exception ex)
+            {
+                string prefix = configuredClient == null ? "Repair stopped: " : $"{configuredClient} configuration updated, but connection repair stopped: ";
+                ShowRepairResult(prefix + ex.Message);
+                McpLog.Warn(prefix + ex.Message);
+            }
+            finally
+            {
+                repairInProgress = false;
+                httpServerToggleInProgress = false;
+                connectionToggleInProgress = false;
+                Root.SetEnabled(true);
+                RefreshHttpUi();
+                UpdateConnectionStatus();
+            }
+        }
+
         private async void OnHttpServerToggleClicked()
         {
             if (httpServerToggleInProgress)
@@ -752,7 +854,7 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
             }
         }
 
-        private async Task TryAutoStartSessionAsync()
+        private async Task<bool> TryAutoStartSessionAsync(Func<bool> canContinue = null)
         {
             // Wait for the HTTP server to become ready, then start the session.
             // This is called when THIS instance starts the server (not when detecting an external server).
@@ -768,6 +870,7 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
 
             while (true)
             {
+                if (canContinue != null && !canContinue()) return false;
                 if (server.IsLocalHttpServerReachable())
                 {
                     McpLog.Info($"Server ready on {url}");
@@ -777,7 +880,7 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
                         McpLog.Info("Session connected");
                         await VerifyBridgeConnectionAsync();
                         UpdateConnectionStatus();
-                        return;
+                        return true;
                     }
                 }
 
@@ -787,16 +890,17 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
                 if ((!processAlive && elapsed > 1.0) || elapsed > hardCap.TotalSeconds)
                 {
                     // Last-resort connect attempt in case reachability detection missed a live server.
+                    if (canContinue != null && !canContinue()) return false;
                     if (await bridgeService.StartAsync())
                     {
                         McpLog.Info("Session connected");
                         await VerifyBridgeConnectionAsync();
                         UpdateConnectionStatus();
-                        return;
+                        return true;
                     }
 
                     server.LogLocalHttpServerLaunchFailure();
-                    return;
+                    return false;
                 }
 
                 await Task.Delay(pollDelay);
@@ -943,6 +1047,7 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
 
         private async Task EndOrphanedSessionAsync()
         {
+            if (repairInProgress) return;
             // Fire-and-forget cleanup of orphaned session when server is no longer running.
             // This prevents the UI from showing "Session Active" when the underlying server is gone.
             try
@@ -1201,7 +1306,7 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
                 string serverTransportName = TransportDisplayName(serverTransport);
 
                 transportMismatchText.text = $"⚠ {clientName} is configured for \"{clientTransportName}\" but server is set to \"{serverTransportName}\". " +
-                    "Click \"Configure\" in Client Configuration to update.";
+                    "Click \"Repair Connection\" below to update the client and connect Unity.";
                 transportMismatchWarning.AddToClassList("visible");
             }
             else

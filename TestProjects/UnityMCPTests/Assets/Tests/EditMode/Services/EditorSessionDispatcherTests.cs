@@ -12,6 +12,8 @@ using MCPForUnity.Editor.Windows.Components.Connection;
 using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 using UnityEditor;
+using UnityEngine;
+using MCPForUnity.Runtime.Helpers;
 using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
@@ -19,7 +21,7 @@ namespace MCPForUnityTests.Editor.Services
 {
     public class EditorSessionDispatcherTests
     {
-        private const string StateKey = "MCPForUnity.EditorSessions.v1";
+        private const string StateKey = "MCPForUnity.EditorSessions.v2";
         private const string TestCommand = "session_dispatcher_test_delayed";
         private static readonly FieldInfo StateField = typeof(EditorSessionCoordinator).GetField("state", BindingFlags.NonPublic | BindingFlags.Static);
         private object previousState;
@@ -52,10 +54,11 @@ namespace MCPForUnityTests.Editor.Services
             foreach (var item in previousTestStatus) item.Key.SetValue(null, item.Value);
         }
 
-        private static Task<string> Send(string command, JObject identity, string action = null, CancellationToken token = default)
+        private static Task<string> Send(string command, JObject identity, string action = null, CancellationToken token = default, JObject parameters = null)
         {
             var args = new JObject { [EditorSessionCoordinator.MetadataKey] = identity.DeepClone() };
             if (action != null) args["action"] = action;
+            if (parameters != null) foreach (var property in parameters.Properties()) args[property.Name] = property.Value.DeepClone();
             return TransportCommandDispatcher.ExecuteCommandJsonAsync(new JObject { ["type"] = command, ["params"] = args }.ToString(), token);
         }
         private static JObject Payload(Task<string> task) => (JObject)JObject.Parse(task.Result)["result"];
@@ -90,6 +93,88 @@ namespace MCPForUnityTests.Editor.Services
             var handover = Send("manage_editor_session", b, "acquire");
             while (!handover.IsCompleted) yield return null;
             Assert.IsTrue(Payload(handover).Value<bool>("success"));
+        }
+
+        [UnityTest]
+        public IEnumerator AutomaticCommandWaitsUntilCancelledCallersHandlerReallyFinishes()
+        {
+            const string nextCommand = "session_dispatcher_test_next";
+            int invocations = 0;
+            handlers.Add(nextCommand, new HandlerInfo(nextCommand, _ => {
+                invocations++;
+                return new JObject { ["success"] = true };
+            }, null));
+            try
+            {
+                var a = new JObject { ["id"] = "auto-a" };
+                var b = new JObject { ["id"] = "auto-b" };
+                using var cancellation = new CancellationTokenSource();
+                var first = Send(TestCommand, a, token: cancellation.Token);
+                yield return null;
+                cancellation.Cancel();
+                var next = Send(nextCommand, b);
+                yield return null;
+                Assert.AreEqual(0, invocations);
+                Assert.IsFalse(next.IsCompleted);
+                worker.SetResult(new JObject { ["success"] = true });
+                double deadline = EditorApplication.timeSinceStartup + 5;
+                while (!next.IsCompleted && EditorApplication.timeSinceStartup < deadline) yield return null;
+                Assert.IsTrue(next.IsCompleted);
+                Assert.AreEqual(1, invocations);
+                Assert.IsTrue(Payload(next).Value<bool>("success"));
+            }
+            finally { handlers.Remove(nextCommand); }
+        }
+
+        [UnityTest]
+        public IEnumerator CancelledQueuedMutationNeverStarts()
+        {
+            const string nextCommand = "session_dispatcher_cancelled_next";
+            int invocations = 0;
+            handlers.Add(nextCommand, new HandlerInfo(nextCommand, _ => { invocations++; return new JObject(); }, null));
+            try
+            {
+                var a = new JObject { ["id"] = "queue-a" };
+                var b = new JObject { ["id"] = "queue-b" };
+                var first = Send(TestCommand, a);
+                yield return null;
+                using var cancellation = new CancellationTokenSource();
+                var next = Send(nextCommand, b, token: cancellation.Token);
+                yield return null;
+                cancellation.Cancel();
+                worker.SetResult(new JObject { ["success"] = true });
+                double deadline = EditorApplication.timeSinceStartup + 5;
+                while (!first.IsCompleted && EditorApplication.timeSinceStartup < deadline) yield return null;
+                yield return null;
+                Assert.AreEqual(0, invocations);
+                Assert.IsTrue(next.IsCanceled);
+            }
+            finally { handlers.Remove(nextCommand); }
+        }
+
+        [UnityTest]
+        public IEnumerator StaleSnapshotRejectsWholeBatchBeforeAnyCommandRuns()
+        {
+            const string counted = "session_dispatcher_guarded_write";
+            int invocations = 0;
+            handlers.Add(counted, new HandlerInfo(counted, _ => { invocations++; return new JObject { ["success"] = true }; }, null));
+            var go = new GameObject("Snapshot dispatcher test");
+            try
+            {
+                var identity = new JObject { ["id"] = "guard-agent" };
+                var observation = EditorRevisionSnapshots.Capture("guard-agent", new JArray("object:" + go.GetInstanceIDCompat()));
+                go.transform.position = Vector3.one;
+                var request = Send("batch_execute", identity, parameters: new JObject {
+                    ["expectedRevision"] = observation["data"]["revision"],
+                    ["commands"] = new JArray(new JObject { ["tool"] = counted, ["params"] = new JObject() })
+                });
+                double deadline = EditorApplication.timeSinceStartup + 5;
+                while (!request.IsCompleted && EditorApplication.timeSinceStartup < deadline) yield return null;
+                Assert.IsTrue(request.IsCompleted);
+                Assert.AreEqual("conflict", Payload(request).Value<string>("error"));
+                Assert.AreEqual(0, invocations);
+            }
+            finally { handlers.Remove(counted); UnityEngine.Object.DestroyImmediate(go); }
         }
 
         [Test]

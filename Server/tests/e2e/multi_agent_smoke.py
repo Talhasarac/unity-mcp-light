@@ -38,15 +38,19 @@ async def run():
     async with Client(server, name="Claude") as a, Client(server, name="Claude") as b:
         owner = None
         try:
+            # No ownership handshake is needed for unrelated ordinary commands.
+            created = await asyncio.gather(*(
+                call(client, "manage_gameobject", action="create", name=name)
+                for client, name in zip((a, b), names)
+            ))
+            assert all(result["success"] for result in created), created
             grant = await acquire(a, "Claude - A")
             assert grant["success"], grant
             owner = a
             denied = await acquire(b, "Claude - B")
-            assert denied.get("error") == "editor_owned", denied
+            assert denied.get("error") == "resource_reserved", denied
             blocked = await call(b, "manage_gameobject", action="create", name=names[1])
-            assert not blocked["success"] and blocked.get("error") == "editor_owned", blocked
-            created = await call(a, "manage_gameobject", action="create", name=names[0])
-            assert created["success"], created
+            assert not blocked["success"] and blocked.get("error") == "editor_queue_timeout" and blocked.get("executed") is False, blocked
             status = await call(b, "manage_editor_session", action="status")
             assert len(status["data"]["agents"]) >= 2, status
             assert (await call(a, "manage_editor_session", action="release"))["success"]
@@ -55,8 +59,6 @@ async def run():
             owner = b
             stale = await call(a, "manage_gameobject", action="create", name=names[1])
             assert not stale["success"], stale
-            created = await call(b, "manage_gameobject", action="create", name=names[1])
-            assert created["success"], created
             print("PASS: distinct Claude sessions, rejected competing mutation, handover, stale owner rejection")
         finally:
             if owner is not None:

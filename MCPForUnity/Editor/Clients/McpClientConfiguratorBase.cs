@@ -524,7 +524,7 @@ namespace MCPForUnity.Editor.Clients
                         }
                     }
 
-                    if (matches)
+                    if (matches && client.configuredTransport == HttpEndpointUtility.GetCurrentServerTransport())
                     {
                         client.SetStatus(McpStatus.Configured);
                         return client.status;
@@ -598,7 +598,7 @@ namespace MCPForUnity.Editor.Clients
         {
             try
             {
-                string uvx = GetUvxPathOrError();
+                string uvx = EditorConfigurationCache.Instance.UseHttpTransport ? null : GetUvxPathOrError();
                 return CodexConfigHelper.BuildCodexServerBlock(uvx);
             }
             catch (Exception ex)
@@ -839,17 +839,7 @@ namespace MCPForUnity.Editor.Clients
             return client.status;
         }
 
-        public override void Configure()
-        {
-            if (client.status == McpStatus.Configured)
-            {
-                Unregister();
-            }
-            else
-            {
-                Register();
-            }
-        }
+        public override void Configure() => Register();
 
         /// <summary>
         /// Thread-safe version of Configure that uses pre-captured main-thread values.
@@ -860,9 +850,9 @@ namespace MCPForUnity.Editor.Clients
             bool useHttpTransport, string httpUrl,
             string uvxPath, string fromArgs, string packageName, string uvxDevFlags,
             string apiKey,
-            Models.ConfiguredTransport serverTransport)
+            Models.ConfiguredTransport serverTransport, bool unregister = false)
         {
-            if (client.status == McpStatus.Configured)
+            if (unregister)
             {
                 UnregisterWithCapturedValues(projectDir, claudePath, pathPrepend);
             }

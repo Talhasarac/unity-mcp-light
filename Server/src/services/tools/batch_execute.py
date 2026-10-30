@@ -62,12 +62,12 @@ def invalidate_cached_max_commands() -> None:
 @mcp_for_unity_tool(
     name="batch_execute",
     description=(
-        "Executes multiple MCP commands in a single batch for dramatically better performance. "
-        "STRONGLY RECOMMENDED when creating/modifying multiple objects, adding components to multiple targets, "
-        "or performing any repetitive operations. Reduces latency and token costs by 10-100x compared to "
-        "sequential tool calls. The max commands per batch is configurable in the Unity MCP Tools window "
-        f"(default {DEFAULT_MAX_COMMANDS_PER_BATCH}, hard max {ABSOLUTE_MAX_COMMANDS_PER_BATCH}). "
-        "Example: creating 5 cubes → use 1 batch_execute with 5 create commands instead of 5 separate calls."
+        "Execute commands sequentially in one Unity request, reducing round trips. "
+        f"Default limit {DEFAULT_MAX_COMMANDS_PER_BATCH}; configurable up to {ABSOLUTE_MAX_COMMANDS_PER_BATCH}. "
+        "For stale-edit protection, take manage_editor_session(action='snapshot', resources=[...]) "
+        "BEFORE inspecting, then pass its revision as expected_revision. A conflict runs no commands. "
+        "Session management and compilation/build/test/bake/Play Mode transitions must be standalone calls. "
+        "A batch is non-interleaved for conflicting MCP operations, but has no rollback on failure."
     ),
     annotations=ToolAnnotations(
         title="Batch Execute",
@@ -78,11 +78,12 @@ async def batch_execute(
     ctx: Context,
     commands: Annotated[list[dict[str, Any]], "List of commands with 'tool' and 'params' keys."],
     parallel: Annotated[bool | None,
-                        "Attempt to run read-only commands in parallel"] = None,
+                        "Legacy hint only; Unity executes batch commands sequentially"] = None,
     fail_fast: Annotated[bool | None,
                          "Stop processing after the first failure"] = None,
     max_parallelism: Annotated[int | None,
                                "Hint for the maximum number of parallel workers"] = None,
+    expected_revision: Annotated[str | None, "Single-use snapshot revision; checks all snapshotted resources immediately before execution"] = None,
 ) -> dict[str, Any]:
     """Proxy the batch_execute tool to the Unity Editor transporter."""
     unity_instance = await get_unity_instance_from_context(ctx)
@@ -131,6 +132,9 @@ async def batch_execute(
     payload: dict[str, Any] = {
         "commands": normalized_commands,
     }
+
+    if expected_revision is not None:
+        payload["expectedRevision"] = expected_revision
 
     if parallel is not None:
         payload["parallel"] = bool(parallel)

@@ -11,7 +11,9 @@
 
 ---
 
-Based on upstream **v10.3.0**. This update keeps Light’s reduced tool set and adds the local **Blender Bridge**, Unity 6.6 compatibility fixes, improved test recovery after domain reloads, and Pi / Trae CN client support.
+**Unity MCP Light v1.0.0 — rewrite.** Light now uses its own version numbering, starting at v1. This rewrite focuses on multiple agents sharing one editor, accurate tool capabilities, and a **Repair Connection** button for client/server setup. See the [v1 release notes](CHANGELOG.md).
+
+Derived from upstream **MCP for Unity v10.3.0**. Upstream attribution and license notices are retained; upstream version numbers describe the project's history, not Light's current release.
 
 ## Why this fork
 
@@ -33,24 +35,20 @@ Everything else — scenes, GameObjects, components, scripts, assets, prefabs, m
 
 ## What was added
 
-**Shared editor coordination.** Multiple agents can connect over HTTP or stdio without
-silently taking over each other's editor work. Call `manage_editor_session(action="acquire",
-agent_name="Claude - UI", task="Build menu")` before inspecting/editing a task, keep the
-lease through compilation and verification, then `action="release"`. Competing requests
-receive a structured wait response. Expired or revoked leases cannot authorize old queued
-commands. Ownership survives domain reloads; an executing command keeps the editor reserved
-even if its caller times out.
+**Shared editor coordination.** Multiple agents share one editor with automatic command
+scheduling. Ordinary calls require no ownership handshake. Use scoped reservations for short
+multi-call sequences, or snapshot resources before inspection and submit a guarded batch to
+reject stale edits. Unrelated audited operations can progress independently; global operations
+remain exclusive while executing. A caller timeout never unlocks running work.
 
-The **Connect → Agents & editor ownership** panel shows the HTTP bridge, open stdio socket
-count (hover for endpoints), current owner/task, lease time, and recent agents with their
-last request. It includes **Copy agent instructions** and **Release ownership** for human
-recovery when the editor is idle. Recent agent activity is not a claim that an HTTP client
-still has an open socket. See [the workflow and migration guide](docs/multi-agent-editing.md).
+The **Connect → Agents & editor ownership** panel shows active reservations, recent agents,
+HTTP/stdio connections and idle recovery controls. See [the coordination and migration
+guide](docs/multi-agent-editing.md) for scope coverage, examples and limitations.
 
-**Upgrade both the Python server and Unity package together, restart MCP clients, and
-reinstall the bundled skill.** Project operations now require an editor lease, including
-single-agent workflows. This does not block external filesystem edits or human editor actions;
-agents must coordinate those through the same workflow.
+**Update the Python server and Unity package together while idle, restart MCP clients and
+reinstall the bundled skill.** Release old leases before upgrading. External filesystem and
+human editor actions are not intercepted. Use the active schema rather than old upstream
+examples; optional tool groups cannot restore tools removed from Light.
 
 `manage_animation` is restored in the optional `animation` group: Animator playback and parameters, AnimatorController states/transitions/layers/blend trees, and AnimationClip curves/events/presets. Enable it with `manage_tools(action="activate", group="animation")` or the **Animation** group on Unity’s **Tools** tab. The CLI also exposes `unity-mcp animation`.
 
@@ -104,9 +102,9 @@ Other changes:
 
    The package keeps the upstream package id (`com.coplaydev.unity-mcp`), so remove the upstream package first if you have it installed.
 
-2. **Configure your client.** Open **Window → Unity MCP Light**, and on the **Connect** tab choose **Configure All Detected Clients** (or configure one client), then restart your MCP client.
+2. **Configure your client.** Open **Window → Unity MCP Light**, and on the **Connect** tab choose **Configure All Detected Clients** (or configure one client), then restart your MCP client. If the transport warning persists or Unity has no session, select the affected client and click **Repair Connection** in the Server section. It reapplies the configuration and starts/reconnects the bridge; its result tells you whether the client still needs a restart. See [connection repair](docs/connection-repair.md).
 
-   Clients are registered under the server name **`unity-mcp-light`** (for example `claude mcp add ... unity-mcp-light` in Claude Code, `[mcp_servers.unity-mcp-light]` in Codex). The Python server is fetched from this repository's `Server/` folder on `main`, not from PyPI, so you get this fork's trimmed tool set without extra setup.
+   Clients are registered under the server name **`unity-mcp-light`** (for example `claude mcp add ... unity-mcp-light` in Claude Code, `[mcp_servers.unity-mcp-light]` in Codex). The Python server is fetched from this repository's `Server/` folder at `v1.0.0`, not from PyPI, so you get this fork's trimmed tool set without extra setup.
 
 3. **Install the skill (optional).** **Install Skills** on the Connect tab copies the agent skill to `~/.claude/skills/unity-mcp-light` (Claude Code) or `~/.codex/skills/unity-mcp-light` (Codex).
 

@@ -17,6 +17,42 @@ Before applying a template:
 
 ## Quick Start: Resource-First Workflow
 
+## Shared Editor Coordination
+
+Ordinary commands are automatically scheduled: **do not acquire the whole editor for a task**.
+Use `manage_editor_session(action="status")` for current agents and reservations.
+For a short sequence, acquire with `resources=["object:<instance ID>", "asset:Assets/<path>"]`,
+re-read, perform the sequence and release. Omit resources only for exclusive editor workflows.
+Audited transform/material actions have narrow scopes; unclassified side effects remain
+editor-wide for the duration of an operation. Keep explicit reservations short.
+
+For optimistic editing, take `manage_editor_session(action="snapshot", resources=[...])`
+**before** inspecting dependencies, then pass its `data.revision` as
+`batch_execute(expected_revision=..., commands=[...])`. A `conflict` runs no commands:
+take a fresh snapshot and re-read. Snapshots expire after 10 minutes or a domain reload.
+Batches have no rollback. Include all read dependencies in the snapshot.
+
+`editor_queue_timeout` with `executed=false` means no command started. A transport timeout
+can leave a running operation; inspect state before retrying mutations. Running work never
+unlocks merely because its caller disconnected. Stale reservations require reacquisition
+and fresh reads. Shell writes and human Unity actions are not intercepted by MCP.
+
+Prefer separate MCP sessions for independent agents. Shared-session callers share explicit
+reservations. Compilation, tests and editor transitions remain global coordination points.
+
+## Capability discovery
+
+Use the **active MCP schema** for names, parameters and accepted actions. This is the Light
+fork; upstream documentation may describe removed tools. `manage_tools(action="list_groups")`
+returns installed tool names; activate an existing optional group if needed. Activation cannot
+restore removed tools. For project-specific tools use the custom-tools resource as described below.
+
+Screenshots use `manage_camera`; `manage_scene` has no public screenshot action.
+`manage_script` accepts create/read/delete; edit with `apply_text_edits` or `script_apply_edits`.
+Batch entries invoke Unity handlers, so server-only tools and Python-only aliases cannot be
+called inside a batch. Compilation, build/test/bake starts and Play Mode transitions
+must also be standalone calls. All batch commands execute sequentially, regardless of `parallel`.
+
 **Always read relevant resources before using tools.** This prevents errors and provides the necessary context.
 
 ```
@@ -53,14 +89,13 @@ read_console(types=["error"], count=10, include_stacktrace=True)
 ### 2. Use `batch_execute` for Multiple Operations
 
 ```python
-# 10-100x faster than sequential calls
+# Fewer transport round trips; Unity handlers still run sequentially
 batch_execute(
     commands=[
         {"tool": "manage_gameobject", "params": {"action": "create", "name": "Cube1", "primitive_type": "Cube"}},
         {"tool": "manage_gameobject", "params": {"action": "create", "name": "Cube2", "primitive_type": "Cube"}},
         {"tool": "manage_gameobject", "params": {"action": "create", "name": "Cube3", "primitive_type": "Cube"}}
-    ],
-    parallel=True  # Hint only: Unity may still execute sequentially
+    ]
 )
 ```
 
@@ -212,6 +247,7 @@ uri="file:///full/path/to/file.cs"
 | **Batch** | `batch_execute` | Parallel/bulk operations |
 | **Camera** | `manage_camera` | Camera management (Unity Camera + Cinemachine). **Tier 1** (always available): create, target, lens, priority, list, screenshot. **Tier 2** (requires `com.unity.cinemachine`): brain, body/aim/noise pipeline, extensions, blending, force/release. 7 presets: follow, third_person, freelook, dolly, static, top_down, side_scroller. Resource: `mcpforunity://scene/cameras`. Use `ping` to check Cinemachine availability. See [tools-reference.md](references/tools-reference.md#camera-tools). |
 | **Graphics** | `manage_graphics` | Rendering and post-processing management. 33 actions across 5 groups: **Volume** (create/configure volumes and effects, URP/HDRP), **Bake** (lightmaps, light probes, reflection probes, Edit mode only), **Stats** (draw calls, batches, memory), **Pipeline** (quality levels, pipeline settings), **Features** (URP renderer features: add, remove, toggle, reorder). Resources: `mcpforunity://scene/volumes`, `mcpforunity://rendering/stats`, `mcpforunity://pipeline/renderer-features`. Use `ping` to check pipeline status. See [tools-reference.md](references/tools-reference.md#graphics-tools). |
+| **Animation** | `manage_animation` | Optional `animation` group: Animator playback/parameters, controller states/transitions/layers/blend trees, and clip curves/events/presets. Enable with `manage_tools(action="activate", group="animation")`. See [animation tools](references/tools-reference.md#animation-tools) and [workflow](references/workflows.md#animation-workflows). |
 | **Physics** | `manage_physics` | Manage 3D and 2D physics (21 actions). Settings, collision matrix, materials, joints (14 types). Queries: `raycast`, `raycast_all`, `linecast`, `shapecast` (sphere/box/capsule sweep), `overlap`. Forces: `apply_force` (AddForce/AddTorque/AddExplosionForce with ForceMode). Rigidbody: `get_rigidbody`, `configure_rigidbody` (mass, drag, gravity, constraints, collision detection). Validation: scene-wide checks. Simulation: `simulate_step` in edit mode. See [tools-reference.md](references/tools-reference.md#physics-tools). |
 | **UI** | `manage_ui`, `batch_execute` with `manage_gameobject` + `manage_components` | **UI Toolkit**: Use `manage_ui` to create UXML/USS files, attach UIDocument, inspect visual trees. **uGUI (Canvas)**: Use `batch_execute` for Canvas, Panel, Button, Text, Slider, Toggle, Input Field. **Read `mcpforunity://project/info` first** to detect uGUI/TMP/Input System/UI Toolkit availability. (see [UI workflows](references/workflows.md#ui-creation-workflows)) |
 | **Docs** | `unity_reflect` | API verification. Inspects live C# APIs via reflection (requires Unity connection): `search` types across assemblies, `get_type` for member summary, `get_member` for full signatures. **Trust hierarchy: reflection > project assets.** Workflow: `search` -> `get_type` -> `get_member`. See [tools-reference.md](references/tools-reference.md#docs-tools). |
