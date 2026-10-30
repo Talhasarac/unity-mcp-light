@@ -276,8 +276,6 @@ namespace MCPForUnity.Editor.Windows
                     clientConfigSection?.RefreshSelectedClient(forceImmediate: true);
             }
 
-            sessionsSection = new McpSessionsSection(clientsContainer);
-
             // Load and initialize Client Configuration section
             var clientConfigTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
                 $"{basePath}/Editor/Windows/Components/ClientConfig/McpClientConfigSection.uxml"
@@ -300,6 +298,8 @@ namespace MCPForUnity.Editor.Windows
                 clientConfigSection.OnClientConfigMismatch += (clientName, mismatchMessage) =>
                     connectionSection?.UpdateVersionMismatchWarning(clientName, mismatchMessage);
             }
+
+            sessionsSection = new McpSessionsSection(clientsContainer);
 
             // Build Dependencies section (replaces old Roslyn + Validation in Deps tab)
             BuildDependenciesSection(depsContainer);
