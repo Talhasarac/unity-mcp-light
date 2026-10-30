@@ -15,6 +15,7 @@ namespace MCPForUnity.Editor.Models
         // Capability flags/config for JSON-based configurators
         public bool IsVsCodeLayout; // Whether the config file follows VS Code layout (env object at root)
         public bool SupportsHttpTransport = true; // Whether the MCP server supports HTTP transport
+        public bool UseStdioHttpBridge; // Launch a stdio proxy for clients without native local HTTP support
         public bool EnsureEnvObject; // Whether to ensure the env object is present in the config
         public bool StripEnvWhenNotRequired; // Whether to strip the env object when not required
         public string HttpTypeValue; // Override for the HTTP transport "type" value (null => "http"; Cline/Roo => "streamableHttp"; Kilo => "remote")

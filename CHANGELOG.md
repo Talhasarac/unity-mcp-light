@@ -2,6 +2,16 @@
 
 Light uses independent semantic versioning starting with v1.0.0. Earlier 10.x numbers identify the upstream MCP for Unity baseline; they are not earlier releases in Light's v1 sequence. Original upstream attribution and license notices remain intact.
 
+## v1.0.1 — Claude Desktop connection repair — 2026-10-31
+
+- Repair Connection now supports Claude Desktop with HTTP Local/Remote through a bundled stdio-to-HTTP bridge, preserving the shared server transport.
+- Keep upstream sessions stable across Desktop calls, with separate state per client and cleanup on disconnect; discover the backend's live tools, resources and prompts.
+- Detect the bridge's target URL in client status, including changed ports, and display Configured (HTTP bridge).
+- Pass remote API keys through environment configuration rather than command arguments; remove stale credentials when switching transports.
+- Refuse to replace unreadable or malformed JSON configuration.
+- Include the Connect tab section reorder: Server, Client Configuration, Agents & editor ownership.
+- Package, server, CLI and bundle versions are 1.0.1. Verification remains pending; tests were added but not run.
+
 ## v1.0.0 — Rewrite — 2026-10-31
 
 ### Multiple agents in one editor

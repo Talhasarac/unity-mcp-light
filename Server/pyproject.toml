@@ -1,6 +1,6 @@
 [project]
 name = "mcpforunityserver"
-version = "1.0.0"
+version = "1.0.1"
 description = "MCP for Unity Server: A Unity package for Unity Editor integration via the Model Context Protocol (MCP)."
 readme = "README.md"
 license = "MIT"
@@ -55,6 +55,7 @@ Changelog = "https://github.com/CoplayDev/unity-mcp/releases"
 
 [project.scripts]
 mcp-for-unity = "main:main"
+mcp-for-unity-proxy = "desktop_bridge:main"
 unity-mcp = "cli.main:main"
 
 [build-system]
@@ -68,7 +69,7 @@ where = ["src"]
 "" = "src"
 
 [tool.setuptools]
-py-modules = ["main"]
+py-modules = ["main", "desktop_bridge"]
 
 [tool.coverage.run]
 source = ["src"]

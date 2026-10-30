@@ -58,7 +58,25 @@ namespace MCPForUnity.Editor.Helpers
             var urlPropsToRemove = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "url", "serverUrl" };
             urlPropsToRemove.Remove(httpProperty);
 
-            if (useHttpTransport)
+            bool useHttpBridge = useHttpTransport && client?.UseStdioHttpBridge == true;
+            if (useHttpBridge)
+            {
+                var (uvxPath, _, _) = AssetPathUtility.GetUvxCommandParts();
+                var args = new List<string>(AssetPathUtility.GetUvxDevFlagsList());
+                args.AddRange(AssetPathUtility.GetBetaServerFromArgsList());
+                args.Add("mcp-for-unity-proxy");
+                args.Add("--url");
+                args.Add(HttpEndpointUtility.GetMcpRpcUrl());
+                unity["command"] = uvxPath;
+                unity["args"] = JArray.FromObject(args);
+                // Claude Desktop launches commands; it does not consume a native HTTP entry here.
+                unity.Remove("type");
+                unity.Remove("url");
+                unity.Remove("serverUrl");
+                unity.Remove("httpUrl");
+                unity.Remove("headers");
+            }
+            else if (useHttpTransport)
             {
                 // HTTP mode: Use URL, no command
                 string httpUrl = HttpEndpointUtility.GetMcpRpcUrl();
@@ -113,6 +131,8 @@ namespace MCPForUnity.Editor.Helpers
                 if (unity["url"] != null) unity.Remove("url");
                 if (unity["serverUrl"] != null) unity.Remove("serverUrl");
 
+                unity.Remove("headers");
+
                 // Include type for all clients — standard MCP protocol field. A few clients use a
                 // different token for local transport (e.g. Kilo uses "local").
                 unity["type"] = string.IsNullOrEmpty(client?.StdioTypeValue) ? "stdio" : client.StdioTypeValue;
@@ -133,6 +153,17 @@ namespace MCPForUnity.Editor.Helpers
                 unity.Remove("env");
             }
 
+            if (useHttpBridge && HttpEndpointUtility.IsRemoteScope())
+            {
+                string apiKey = EditorPrefs.GetString(EditorPrefKeys.ApiKey, string.Empty);
+                if (!string.IsNullOrEmpty(apiKey))
+                {
+                    var env = unity["env"] as JObject ?? new JObject();
+                    env["UNITY_MCP_BRIDGE_API_KEY"] = apiKey;
+                    unity["env"] = env;
+                }
+            }
+
             if (client?.DefaultUnityFields != null)
             {
                 foreach (var kvp in client.DefaultUnityFields)
@@ -143,6 +174,16 @@ namespace MCPForUnity.Editor.Helpers
                     }
                 }
             }
+        }
+
+        public static string GetHttpBridgeUrl(string[] args)
+        {
+            if (args == null) return null;
+            int executable = Array.IndexOf(args, "mcp-for-unity-proxy");
+            if (executable < 0) return null;
+            for (int i = executable + 1; i < args.Length - 1; i++)
+                if (args[i] == "--url") return args[i + 1];
+            return null;
         }
 
         private static string GetContainerKey(McpClient client, bool isVSCode)

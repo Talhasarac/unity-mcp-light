@@ -39,41 +39,16 @@ namespace MCPForUnity.Editor.Helpers
 
             JsonSerializerSettings jsonSettings = new() { Formatting = Formatting.Indented };
 
-            // Read existing config if it exists
-            string existingJson = "{}";
-            if (File.Exists(configPath))
-            {
-                try
-                {
-                    existingJson = File.ReadAllText(configPath);
-                }
-                catch (Exception e)
-                {
-                    McpLog.Warn($"Error reading existing config: {e.Message}.");
-                }
-            }
-
-            // Parse the existing JSON while preserving all properties
-            dynamic existingConfig;
+            // Refuse unreadable or malformed config rather than replacing unrelated client settings.
+            JObject existingConfig;
             try
             {
-                if (string.IsNullOrWhiteSpace(existingJson))
-                {
-                    existingConfig = new JObject();
-                }
-                else
-                {
-                    existingConfig = JsonConvert.DeserializeObject(existingJson) ?? new JObject();
-                }
+                string existingJson = File.Exists(configPath) ? File.ReadAllText(configPath) : "{}";
+                existingConfig = string.IsNullOrWhiteSpace(existingJson) ? new JObject() : JObject.Parse(existingJson);
             }
-            catch
+            catch (Exception ex)
             {
-                // If user has partial/invalid JSON (e.g., mid-edit), start from a fresh object
-                if (!string.IsNullOrWhiteSpace(existingJson))
-                {
-                    McpLog.Warn($"{ProductInfo.McpServerName}: Configuration file could not be parsed; rewriting server block.");
-                }
-                existingConfig = new JObject();
+                return $"Cannot read MCP configuration at '{configPath}': {ex.Message}. The file has not been changed.";
             }
 
             // Determine existing entry references (command/args)

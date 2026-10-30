@@ -743,6 +743,10 @@ namespace MCPForUnity.Editor.Windows.Components.ClientConfig
             else
             {
                 clientStatusLabel.text = GetStatusDisplayString(client.Status);
+                if (client.Status == McpStatus.Configured
+                    && client is McpClientConfiguratorBase bridgeClient && bridgeClient.Client.UseStdioHttpBridge
+                    && client.ConfiguredTransport != ConfiguredTransport.Stdio)
+                    clientStatusLabel.text = "Configured (HTTP bridge)";
 
                 switch (client.Status)
                 {

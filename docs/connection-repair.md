@@ -12,7 +12,11 @@ Codex HTTP configuration no longer depends on finding uv/uvx; launching the loca
 
 The repair updates the selected configurator's file/scope. It does not rewrite every possible project override, profile, managed policy, or a separately launched client's environment. Codex can load project configuration over its user configuration ([official configuration documentation](https://learn.chatgpt.com/docs/config-file/config-basic)). If Unity reports success but the client still uses old settings after reconnecting, inspect that client's effective configuration and the config path shown in Unity.
 
-Claude Desktop only supports stdio in this package's configurator. For Claude Desktop's local **Code tab**, select **Claude Code** to configure HTTP. A Claude Desktop JSON entry with the same server name can still override that registration ([Anthropic documentation](https://code.claude.com/docs/en/desktop)); remove that old entry if switching the Code tab to HTTP. Repair refuses unsupported transport combinations rather than claiming they were fixed. Clear a Claude Code project-directory override before repairing this project's bridge.
+Starting in v1.0.1, **Claude Desktop** supports HTTP through the bundled `mcp-for-unity-proxy` command. Desktop still launches a stdio process, but that process forwards tools/resources/prompts to the selected shared HTTP endpoint. The UI reports **Configured (HTTP bridge)**. Repair writes this compatible command and starts/connects the HTTP server, without changing the global transport. Restart Claude Desktop to load the new command. The proxy uses the existing Python package dependencies; it does not require Node.js.
+
+Each Desktop MCP session keeps its own upstream session, so selected Unity instances and reservation credentials persist between calls and are isolated from other clients. Tool definitions come from the running backend. Closing the client closes its proxy session; the shared server stays running.
+
+For native HTTP in the local **Code tab**, **Claude Code** remains an option. A same-named Desktop registration takes precedence there ([Anthropic documentation](https://code.claude.com/docs/en/desktop)). Both configurations must target the intended endpoint. Clear a Claude Code project-directory override before repairing this project's bridge.
 
 ## Verification handoff — UNVERIFIED
 
@@ -24,3 +28,5 @@ No compiles, tests, or live Unity/client checks were run for this change.
 - Remove uv from the configured paths: HTTP config writing must still work; a local launch without its dependencies must report the remaining failure.
 - Retry after a failed launch; close/reopen the MCP window during a slow launch; change settings in another window during a repair. No late result should claim success for changed settings.
 - Regression coverage is in `ClientConnectionRepairTests.cs`. It uses temporary config files and restores preferences and registered services; it never needs a real client app or server.
+
+Additional v1.0.1 handoff: reproduce the Claude Desktop screenshot with HTTP Local at port 8088. Repair should replace the old direct stdio server command with `mcp-for-unity-proxy --url http://127.0.0.1:8088/mcp`, display Configured (HTTP bridge), and connect Unity. After restarting Desktop, inspect then modify through successive calls, confirming the selected editor persists. Repeating Repair must keep the registration. Switching back to stdio must remove the proxy command. No tests or live checks have been run for this patch.

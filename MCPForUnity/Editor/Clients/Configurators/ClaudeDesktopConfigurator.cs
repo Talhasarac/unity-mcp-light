@@ -16,7 +16,8 @@ namespace MCPForUnity.Editor.Clients.Configurators
             windowsConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Claude", "claude_desktop_config.json"),
             macConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library", "Application Support", "Claude", "claude_desktop_config.json"),
             linuxConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config", "Claude", "claude_desktop_config.json"),
-            SupportsHttpTransport = false,
+            SupportsHttpTransport = true,
+            UseStdioHttpBridge = true,
             StripEnvWhenNotRequired = true
         })
         { }
@@ -34,10 +35,9 @@ namespace MCPForUnity.Editor.Clients.Configurators
             "Open Claude Desktop",
             "Go to Settings > Developer > Edit Config\nOR open the config path",
             "Paste the configuration JSON",
+            "HTTP mode uses a local stdio bridge to the shared HTTP server",
             "Save and restart Claude Desktop"
         };
 
-        private static readonly ConfiguredTransport[] StdioOnly = { ConfiguredTransport.Stdio };
-        public override IReadOnlyList<ConfiguredTransport> SupportedTransports => StdioOnly;
     }
 }

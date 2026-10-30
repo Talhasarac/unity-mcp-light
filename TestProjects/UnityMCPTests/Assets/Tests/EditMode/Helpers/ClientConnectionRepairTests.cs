@@ -10,6 +10,7 @@ using MCPForUnity.Editor.Services;
 using MCPForUnity.Editor.Windows.Components.ClientConfig;
 using MCPForUnity.External.Tommy;
 using NUnit.Framework;
+using Newtonsoft.Json.Linq;
 using UnityEditor;
 
 namespace MCPForUnityTests.Editor.Helpers
@@ -29,9 +30,9 @@ namespace MCPForUnityTests.Editor.Helpers
             public override string GetConfigPath() => path;
         }
 
-        private sealed class NoLauncher : IPathResolverService
+        private class NoLauncher : IPathResolverService
         {
-            public string GetUvxPath() => throw new InvalidOperationException("HTTP config must not resolve uvx");
+            public virtual string GetUvxPath() => throw new InvalidOperationException("HTTP config must not resolve uvx");
             public string GetClaudeCliPath() => null;
             public bool IsPythonDetected() => false;
             public bool IsClaudeCliDetected() => false;
@@ -45,10 +46,22 @@ namespace MCPForUnityTests.Editor.Helpers
             public bool TryValidateUvxExecutable(string path, out string version) { version = null; return false; }
         }
 
+        private sealed class DesktopLauncher : NoLauncher
+        {
+            public override string GetUvxPath() => "/test/uvx";
+        }
+
+        private sealed class TemporaryDesktop : ClaudeDesktopConfigurator
+        {
+            private readonly string path;
+            public TemporaryDesktop(string path) { this.path = path; }
+            public override string GetConfigPath() => path;
+        }
+
         [SetUp]
         public void SetUp()
         {
-            foreach (string key in new[] { EditorPrefKeys.HttpBaseUrl, EditorPrefKeys.HttpRemoteBaseUrl, EditorPrefKeys.HttpTransportScope })
+            foreach (string key in new[] { EditorPrefKeys.HttpBaseUrl, EditorPrefKeys.HttpRemoteBaseUrl, EditorPrefKeys.HttpTransportScope, EditorPrefKeys.ApiKey })
                 stringPrefs[key] = (EditorPrefs.HasKey(key), EditorPrefs.GetString(key));
             foreach (string key in new[] { EditorPrefKeys.UseHttpTransport, EditorPrefKeys.LockCursorConfig })
                 boolPrefs[key] = (EditorPrefs.HasKey(key), EditorPrefs.GetBool(key));
@@ -145,6 +158,73 @@ namespace MCPForUnityTests.Editor.Helpers
             client.Client.configuredTransport = ConfiguredTransport.Stdio;
             Assert.IsFalse(McpClientConfigSection.ShouldUnregister(client, ConfiguredTransport.Http));
             Assert.IsTrue(McpClientConfigSection.ShouldUnregister(client, ConfiguredTransport.Stdio));
+        }
+
+        [Test]
+        public void DesktopRepair_ReplacesOldStdioWithHttpBridgeAndDetectsChangedPort()
+        {
+            MCPServiceLocator.Register<IPathResolverService>(new DesktopLauncher());
+            string path = Path.Combine(directory, "desktop.json");
+            File.WriteAllText(path, "{\"mcpServers\":{\"other\":{\"command\":\"preserve\"},"
+                + "\"unity-mcp-light\":{\"command\":\"uvx\",\"args\":[\"mcp-for-unity\",\"--transport\",\"stdio\"]}}}");
+            var client = new TemporaryDesktop(path);
+            for (int attempt = 0; attempt < 2; attempt++)
+            {
+                client.Configure();
+                Assert.AreEqual(McpStatus.Configured, client.CheckStatus(attemptAutoRewrite: false));
+                Assert.AreEqual(ConfiguredTransport.Http, client.ConfiguredTransport);
+            }
+            var root = JObject.Parse(File.ReadAllText(path));
+            Assert.AreEqual("preserve", (string)root["mcpServers"]["other"]["command"]);
+            var unity = (JObject)root["mcpServers"]["unity-mcp-light"];
+            Assert.AreEqual("/test/uvx", (string)unity["command"]);
+            Assert.AreEqual("http://127.0.0.1:8088/mcp", ConfigJsonBuilder.GetHttpBridgeUrl(unity["args"].ToObject<string[]>()));
+            Assert.IsNull(unity["url"]);
+            Assert.IsNull(unity["type"]);
+            EditorPrefs.SetString(EditorPrefKeys.HttpBaseUrl, "http://127.0.0.1:8089");
+            Assert.AreNotEqual(McpStatus.Configured, client.CheckStatus(attemptAutoRewrite: false));
+        }
+
+        [Test]
+        public void DesktopRepair_InvalidJson_DoesNotDiscardOtherClientSettings()
+        {
+            string path = Path.Combine(directory, "desktop.json");
+            const string original = "{\"mcpServers\": {";
+            File.WriteAllText(path, original);
+            Assert.Throws<InvalidOperationException>(() => new TemporaryDesktop(path).Configure());
+            Assert.AreEqual(original, File.ReadAllText(path));
+        }
+
+        [Test]
+        public void DesktopRepair_RemoteKeyIsNotInArgsAndLocalSwitchRemovesIt()
+        {
+            MCPServiceLocator.Register<IPathResolverService>(new DesktopLauncher());
+            EditorPrefs.SetString(EditorPrefKeys.HttpTransportScope, "remote");
+            EditorPrefs.SetString(EditorPrefKeys.HttpRemoteBaseUrl, "https://example.test");
+            EditorPrefs.SetString(EditorPrefKeys.ApiKey, "sample-test-key");
+            EditorConfigurationCache.Instance.Refresh();
+            var client = new TemporaryDesktop(Path.Combine(directory, "desktop.json"));
+            client.Configure();
+            var root = JObject.Parse(File.ReadAllText(client.GetConfigPath()));
+            var unity = (JObject)root["mcpServers"]["unity-mcp-light"];
+            Assert.AreEqual("sample-test-key", (string)unity["env"]["UNITY_MCP_BRIDGE_API_KEY"]);
+            StringAssert.DoesNotContain("sample-test-key", unity["args"].ToString());
+            Assert.AreEqual(McpStatus.Configured, client.CheckStatus(attemptAutoRewrite: false));
+            Assert.AreEqual(ConfiguredTransport.HttpRemote, client.ConfiguredTransport);
+
+            EditorPrefs.SetString(EditorPrefKeys.HttpTransportScope, "local");
+            EditorConfigurationCache.Instance.Refresh();
+            client.Configure();
+            unity = (JObject)JObject.Parse(File.ReadAllText(client.GetConfigPath()))["mcpServers"]["unity-mcp-light"];
+            Assert.IsNull(unity["env"]);
+
+            EditorPrefs.SetBool(EditorPrefKeys.UseHttpTransport, false);
+            EditorConfigurationCache.Instance.Refresh();
+            client.Configure();
+            unity = (JObject)JObject.Parse(File.ReadAllText(client.GetConfigPath()))["mcpServers"]["unity-mcp-light"];
+            Assert.IsNull(ConfigJsonBuilder.GetHttpBridgeUrl(unity["args"].ToObject<string[]>()));
+            Assert.AreEqual(McpStatus.Configured, client.CheckStatus(attemptAutoRewrite: false));
+            Assert.AreEqual(ConfiguredTransport.Stdio, client.ConfiguredTransport);
         }
 
         [Test]

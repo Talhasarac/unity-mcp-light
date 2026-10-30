@@ -11,7 +11,7 @@
 
 ---
 
-**Unity MCP Light v1.0.0 — rewrite.** Light now uses its own version numbering, starting at v1. This rewrite focuses on multiple agents sharing one editor, accurate tool capabilities, and a **Repair Connection** button for client/server setup. See the [v1 release notes](CHANGELOG.md).
+**Unity MCP Light v1.0.1 — rewrite.** Light now uses its own version numbering, starting at v1. This rewrite focuses on multiple agents sharing one editor, accurate tool capabilities, and a **Repair Connection** button for client/server setup. See the [v1 release notes](CHANGELOG.md).
 
 Derived from upstream **MCP for Unity v10.3.0**. Upstream attribution and license notices are retained; upstream version numbers describe the project's history, not Light's current release.
 
@@ -104,7 +104,7 @@ Other changes:
 
 2. **Configure your client.** Open **Window → Unity MCP Light**, and on the **Connect** tab choose **Configure All Detected Clients** (or configure one client), then restart your MCP client. If the transport warning persists or Unity has no session, select the affected client and click **Repair Connection** in the Server section. It reapplies the configuration and starts/reconnects the bridge; its result tells you whether the client still needs a restart. See [connection repair](docs/connection-repair.md).
 
-   Clients are registered under the server name **`unity-mcp-light`** (for example `claude mcp add ... unity-mcp-light` in Claude Code, `[mcp_servers.unity-mcp-light]` in Codex). The Python server is fetched from this repository's `Server/` folder at `v1.0.0`, not from PyPI, so you get this fork's trimmed tool set without extra setup.
+   Clients are registered under the server name **`unity-mcp-light`** (for example `claude mcp add ... unity-mcp-light` in Claude Code, `[mcp_servers.unity-mcp-light]` in Codex). The Python server is fetched from this repository's `Server/` folder at `v1.0.1`, not from PyPI, so you get this fork's trimmed tool set without extra setup.
 
 3. **Install the skill (optional).** **Install Skills** on the Connect tab copies the agent skill to `~/.claude/skills/unity-mcp-light` (Claude Code) or `~/.codex/skills/unity-mcp-light` (Codex).
 

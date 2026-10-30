@@ -215,8 +215,12 @@ namespace MCPForUnity.Editor.Clients
                     return client.status;
                 }
 
+                // The Desktop command speaks stdio, but its backend uses the shared HTTP route.
+                string bridgeUrl = client.UseStdioHttpBridge ? ConfigJsonBuilder.GetHttpBridgeUrl(args) : null;
+                if (!string.IsNullOrEmpty(bridgeUrl)) configuredUrl = bridgeUrl;
+
                 // Determine and set the configured transport type
-                if (args != null && args.Length > 0)
+                if (args != null && args.Length > 0 && string.IsNullOrEmpty(bridgeUrl))
                 {
                     client.configuredTransport = Models.ConfiguredTransport.Stdio;
                 }
@@ -284,6 +288,14 @@ namespace MCPForUnity.Editor.Clients
                     // Match against the active scope's URL
                     string expectedUrl = HttpEndpointUtility.GetMcpRpcUrl();
                     matches = UrlsEqual(configuredUrl, expectedUrl);
+                }
+
+                if (client.UseStdioHttpBridge)
+                {
+                    bool wantsHttp = EditorConfigurationCache.Instance.UseHttpTransport;
+                    matches = matches && (wantsHttp
+                        ? !string.IsNullOrEmpty(bridgeUrl) && UrlsEqual(bridgeUrl, HttpEndpointUtility.GetMcpRpcUrl())
+                        : string.IsNullOrEmpty(bridgeUrl) && args != null && args.Contains("mcp-for-unity"));
                 }
 
                 if (matches)
