@@ -18,16 +18,6 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
         private readonly VisualElement agents;
         private readonly Button release;
 
-        internal const string AgentInstructions =
-            "Unity calls are scheduled automatically; do not acquire the editor for an entire task. " +
-            "Use instance IDs for object edits. For stale-edit protection, call manage_editor_session " +
-            "with action='snapshot' and resources=['object:<id>', 'asset:Assets/<path>'] before inspecting; " +
-            "pass the returned revision as batch_execute.expected_revision. On conflict, snapshot and read again. " +
-            "For a short multi-call sequence, acquire with explicit resources, then release when finished. " +
-            "Acquiring without resources is exclusive. A timeout never releases running work. " +
-            "An editor_queue_timeout with executed=false means no handler ran. " +
-            "Shell writes and human Unity actions are not intercepted; coordinate them separately.";
-
         internal McpSessionsSection(VisualElement parent)
         {
             var section = new VisualElement { name = "editor-sessions-section" };
@@ -45,9 +35,8 @@ namespace MCPForUnity.Editor.Windows.Components.Connection
             AddLabel(content, "Ordinary commands share the editor. Reservations protect only overlapping work.");
             var buttons = new VisualElement();
             buttons.style.flexDirection = FlexDirection.Row;
-            var copy = new Button(() => EditorGUIUtility.systemCopyBuffer = AgentInstructions)
-                { text = "Copy agent instructions" };
-            buttons.Add(copy);
+            AddLabel(content, "Coordination instructions are sent automatically when an MCP client connects. " +
+                "After updating the server, reconnect clients to load the new instructions.");
             release = new Button(() =>
             {
                 if (!EditorUtility.DisplayDialog("Release all editor reservations?",

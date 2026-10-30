@@ -1,5 +1,12 @@
 # Multiple agents in one Unity Editor
 
+MCP initialization delivers coordination instructions automatically. Native HTTP,
+direct stdio and the Desktop HTTP bridge share `Server/src/services/agent_instructions.py`.
+No copy/paste or skill installation is needed for this guidance. Reconnect clients
+after updating/restarting the server; existing conversations may retain older guidance.
+The optional skill adds a [shared-editor reference](../unity-mcp-skill/references/shared-editor.md).
+User/project rules, including restrictions on verification, take precedence.
+
 Ordinary calls no longer require `acquire` or `release`. Each request is scheduled on
 Unity's main thread, and protection ends when the actual handler completes, not when
 an agent finishes thinking about its task. Session identity and retry deduplication remain.

@@ -26,7 +26,7 @@ async def test_guarded_batch_forwards_the_observation_token(monkeypatch):
 
 
 def test_distribution_skill_copies_match():
-    for relative in ("SKILL.md", "references/tools-reference.md", "references/workflows.md", "references/resources-reference.md"):
+    for relative in ("SKILL.md", "references/tools-reference.md", "references/workflows.md", "references/resources-reference.md", "references/shared-editor.md"):
         assert (ROOT / "unity-mcp-skill" / relative).read_text() == (ROOT / ".claude/skills/unity-mcp-skill" / relative).read_text()
 
 
@@ -51,6 +51,6 @@ def test_known_stale_actions_do_not_return_to_executable_examples():
 
 
 def test_startup_prompt_no_longer_teaches_removed_component_action():
-    source = (ROOT / "Server/src/main.py").read_text()
+    source = (ROOT / "Server/src/services/agent_instructions.py").read_text()
     assert 'manage_gameobject(action="get_components")' not in source
     assert "Shared editor ownership (required, even for one agent)" not in source

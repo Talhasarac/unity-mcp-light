@@ -16,6 +16,11 @@ Starting in v1.0.1, **Claude Desktop** supports HTTP through the bundled `mcp-fo
 
 Each Desktop MCP session keeps its own upstream session, so selected Unity instances and reservation credentials persist between calls and are isolated from other clients. Tool definitions come from the running backend. Closing the client closes its proxy session; the shared server stays running.
 
+From v1.0.3, the Desktop bridge also supplies the same coordination/workflow guidance
+as the main server during MCP initialization. Nothing needs to be pasted into agent
+chats. Reconnect clients after updating the server and bridge to receive new guidance;
+updating a skill file alone does not replace instructions already held by a conversation.
+
 For native HTTP in the local **Code tab**, **Claude Code** remains an option. A same-named Desktop registration takes precedence there ([Anthropic documentation](https://code.claude.com/docs/en/desktop)). Both configurations must target the intended endpoint. Clear a Claude Code project-directory override before repairing this project's bridge.
 
 ## Verification handoff — UNVERIFIED

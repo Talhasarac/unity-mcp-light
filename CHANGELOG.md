@@ -2,6 +2,14 @@
 
 Light uses independent semantic versioning starting with v1.0.0. Earlier 10.x numbers identify the upstream MCP for Unity baseline; they are not earlier releases in Light's v1 sequence. Original upstream attribution and license notices remain intact.
 
+## v1.0.3 — Automatic agent guidance — 2026-10-31
+
+- Share one instruction builder across native HTTP/stdio and the Claude Desktop bridge, supplying coordination guidance during MCP initialization without copy/paste.
+- Remove the Copy agent instructions button; explain that clients receive guidance on connection and must reconnect after a server update.
+- Update the distributed skill and shared-editor reference with independent sessions, scoped reservations, snapshot-before-read workflows, timeout recovery and direct-file ownership.
+- Make project/user restrictions take precedence over compilation and verification examples.
+- Add an in-memory regression for delivery of Desktop instructions during initialization. No builds, compiles, tests or live checks run; user verification pending.
+
 ## v1.0.2 — Unity compile fix — 2026-10-31
 
 - Fix CS7036 in Claude Desktop transport detection by using `Array.IndexOf` for the command argument lookup. The previous `Contains` call required a missing LINQ import and resolved to an incompatible span overload.

@@ -5,6 +5,8 @@ import os
 from contextlib import asynccontextmanager
 from urllib.parse import urlsplit
 
+from services.agent_instructions import build_instructions
+
 from fastmcp.client.transports import StreamableHttpTransport
 from fastmcp.server.providers.proxy import FastMCPProxy, StatefulProxyClient
 
@@ -41,7 +43,7 @@ def create_desktop_bridge(url: str) -> FastMCPProxy:
         name="Unity MCP Light Desktop Bridge",
         client_factory=backend.new_stateful,
         lifespan=lifespan,
-        instructions="Tools are forwarded to the running Unity MCP Light HTTP server. "
+        instructions=build_instructions() + "\nTools are forwarded to the running Unity MCP Light HTTP server. "
         "If it is unavailable, start it with Repair Connection in Unity and reconnect this client.",
     )
 

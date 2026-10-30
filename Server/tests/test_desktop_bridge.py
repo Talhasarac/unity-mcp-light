@@ -9,6 +9,20 @@ import desktop_bridge
 
 
 @pytest.mark.asyncio
+async def test_bridge_delivers_shared_guidance_during_initialization(monkeypatch):
+    # The client must receive guidance before asking for any tool or resource.
+    backend = FastMCP("Backend without instructions")
+    monkeypatch.setattr(desktop_bridge, "StreamableHttpTransport", lambda *a, **kw: backend)
+    guidance = "Shared guidance supplied by the instruction builder."
+    monkeypatch.setattr(desktop_bridge, "build_instructions", lambda: guidance)
+    proxy = desktop_bridge.create_desktop_bridge("http://127.0.0.1:8088/mcp")
+    async with Client(proxy) as client:
+        initialized = client.initialize_result
+        assert initialized is not None
+        assert initialized.instructions.startswith(guidance + "\n")
+
+
+@pytest.mark.asyncio
 async def test_bridge_retains_session_state_and_isolates_other_clients(monkeypatch):
     active_connections = 0
 

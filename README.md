@@ -11,7 +11,7 @@
 
 ---
 
-**Unity MCP Light v1.0.2 — rewrite.** Light now uses its own version numbering, starting at v1. This rewrite focuses on multiple agents sharing one editor, accurate tool capabilities, and a **Repair Connection** button for client/server setup. See the [v1 release notes](CHANGELOG.md).
+**Unity MCP Light v1.0.3 — rewrite.** Light now uses its own version numbering, starting at v1. This rewrite focuses on multiple agents sharing one editor, accurate tool capabilities, and a **Repair Connection** button for client/server setup. See the [v1 release notes](CHANGELOG.md).
 
 Derived from upstream **MCP for Unity v10.3.0**. Upstream attribution and license notices are retained; upstream version numbers describe the project's history, not Light's current release.
 
@@ -104,9 +104,9 @@ Other changes:
 
 2. **Configure your client.** Open **Window → Unity MCP Light**, and on the **Connect** tab choose **Configure All Detected Clients** (or configure one client), then restart your MCP client. If the transport warning persists or Unity has no session, select the affected client and click **Repair Connection** in the Server section. It reapplies the configuration and starts/reconnects the bridge; its result tells you whether the client still needs a restart. See [connection repair](docs/connection-repair.md).
 
-   Clients are registered under the server name **`unity-mcp-light`** (for example `claude mcp add ... unity-mcp-light` in Claude Code, `[mcp_servers.unity-mcp-light]` in Codex). The Python server is fetched from this repository's `Server/` folder at `v1.0.2`, not from PyPI, so you get this fork's trimmed tool set without extra setup.
+   Clients are registered under the server name **`unity-mcp-light`** (for example `claude mcp add ... unity-mcp-light` in Claude Code, `[mcp_servers.unity-mcp-light]` in Codex). The Python server is fetched from this repository's `Server/` folder at `v1.0.3`, not from PyPI, so you get this fork's trimmed tool set without extra setup.
 
-3. **Install the skill (optional).** **Install Skills** on the Connect tab copies the agent skill to `~/.claude/skills/unity-mcp-light` (Claude Code) or `~/.codex/skills/unity-mcp-light` (Codex).
+3. **Agent guidance is automatic.** Every new MCP connection receives the shared-editor workflow, including Claude Desktop through its HTTP bridge. No copying agent instructions is needed. **Install Skills** is optional extra reference material for Claude Code and Codex; it installs to `~/.claude/skills/unity-mcp-light` or `~/.codex/skills/unity-mcp-light`. Reconnect clients after a server update to reload connection instructions; start a new conversation if it retains an old skill.
 
 4. **Try it.** Ask: *"Create a cube at the origin and add a Rigidbody."*
 
@@ -116,7 +116,7 @@ To run the server from a local clone instead, set **Advanced → Server Source**
 
 - **Tool groups.** Tools are grouped (`core`, `vfx`, `animation`, `ui`, `testing`, `docs`, `scripting_ext`, `asset_gen`). Only `core` is on by default over HTTP; turn the others on when you need them with `manage_tools`, or on the **Tools** tab in Unity. The `vfx` group now holds only `manage_shader` and `manage_texture`.
 - **Clients with tool search** (such as Claude Code) load tool definitions only when needed, so the savings here matter most for clients that load every definition up front.
-- **The skill.** `unity-mcp-skill/` gives agents usage guidance. It is large; install it only if your agent benefits from it.
+- **The skill.** `unity-mcp-skill/` adds examples and references to the automatic connection guidance. Its [shared-editor guide](unity-mcp-skill/references/shared-editor.md) covers scoped reservations, snapshots and file coordination. It is optional for normal operation.
 
 ## Development
 

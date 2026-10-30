@@ -60,7 +60,7 @@ def _offenders(text: str | None, where: str, uris_by_name: dict[str, str]) -> li
     return found
 
 
-@pytest.mark.parametrize("project_scoped_tools", [True, False])
+@pytest.mark.parametrize("project_scoped_tools", [True, False, None])
 def test_server_instructions_reference_resources_by_uri(
     project_scoped_tools: bool, build_instructions, resource_uris_by_name: dict[str, str]
 ):

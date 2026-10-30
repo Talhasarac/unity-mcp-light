@@ -5,40 +5,53 @@ description: Orchestrate Unity Editor via MCP (Model Context Protocol) tools and
 
 # Unity-MCP Operator Guide
 
-This skill helps you effectively use the Unity Editor with MCP tools and resources.
+Use Unity MCP Light to inspect and change the intended Unity project. Follow user
+instructions and project rules first. Verification examples below apply only when
+allowed: never run compiles, tests, builds, console checks, screenshots or other
+verification when forbidden. Script tools may trigger import/compilation; use an
+allowed direct-file workflow when those side effects are prohibited.
+
+Core coordination instructions arrive automatically when MCP connects, including
+through the Claude Desktop HTTP bridge. Do not ask the user to paste agent instructions
+or install this skill before ordinary shared-editor work. This skill adds examples;
+the live MCP schema determines which tools/actions are actually available.
 
 ## Template Notice
 
-Examples in `references/workflows.md` and `references/tools-reference.md` are reusable templates. They may be inaccurate across Unity versions, package setups (UGUI/TMP/Input System), and project-specific conventions. Please check console, compilation errors, or use screenshot after implementation.
+Examples in `references/workflows.md` and `references/tools-reference.md` are reusable templates. They may be inaccurate across Unity versions, package setups (UGUI/TMP/Input System), and project-specific conventions. Use only the verification allowed by the user and project.
 
 Before applying a template:
 - Validate targets/components first via resources and `find_gameobjects`.
 - Treat names, enum values, and property payloads as placeholders to adapt.
 
-## Quick Start: Resource-First Workflow
+## Shared editor: default workflow
 
-## Shared Editor Coordination
+- Use separate MCP sessions for independent agents and select the intended editor.
+  Shared-session children share routing, reservations and snapshot credentials.
+- Split work by objects/assets and source files. Ordinary calls are scheduled
+  automatically; **do not acquire the whole editor for a task**.
+- Use instance IDs for object edits and exact `Assets/...mat` paths for material edits.
+  Only audited plain transform/material writes have narrow scopes. Structural edits,
+  arbitrary component setters and unclassified side effects need editor-wide access
+  for their operation. Unity APIs still execute on the main thread.
+- For edits based on earlier observations: **snapshot → inspect → guarded batch**.
+  Call `manage_editor_session(action="snapshot", resources=[...])` before reading all
+  dependencies, then pass `data.revision` to `batch_execute(expected_revision=...)`.
+  A revision conflict runs no commands: snapshot, reread and reconsider the edit.
+- Reserve explicit resources only for a short multi-call sequence; reread after
+  acquiring and release promptly. Omit resources only for necessary exclusive
+  editor sequences. Do not reserve the editor while thinking or waiting for input.
+- `editor_queue_timeout` with `executed=false` means no handler started. A transport
+  timeout may leave work running; inspect state before retrying mutations. A
+  disconnected caller does not unlock its running operation.
+- Direct file edits, Git and human Unity actions are outside MCP coordination. Assign
+  separate files and hand off shared files. Scene/asset saves and Undo may affect
+  other agents' changes; separate branches in one directory do not isolate files.
 
-Ordinary commands are automatically scheduled: **do not acquire the whole editor for a task**.
-Use `manage_editor_session(action="status")` for current agents and reservations.
-For a short sequence, acquire with `resources=["object:<instance ID>", "asset:Assets/<path>"]`,
-re-read, perform the sequence and release. Omit resources only for exclusive editor workflows.
-Audited transform/material actions have narrow scopes; unclassified side effects remain
-editor-wide for the duration of an operation. Keep explicit reservations short.
-
-For optimistic editing, take `manage_editor_session(action="snapshot", resources=[...])`
-**before** inspecting dependencies, then pass its `data.revision` as
-`batch_execute(expected_revision=..., commands=[...])`. A `conflict` runs no commands:
-take a fresh snapshot and re-read. Snapshots expire after 10 minutes or a domain reload.
-Batches have no rollback. Include all read dependencies in the snapshot.
-
-`editor_queue_timeout` with `executed=false` means no command started. A transport timeout
-can leave a running operation; inspect state before retrying mutations. Running work never
-unlocks merely because its caller disconnected. Stale reservations require reacquisition
-and fresh reads. Shell writes and human Unity actions are not intercepted by MCP.
-
-Prefer separate MCP sessions for independent agents. Shared-session callers share explicit
-reservations. Compilation, tests and editor transitions remain global coordination points.
+Read [shared-editor.md](references/shared-editor.md) for snapshot/reservation examples,
+conflict recovery and coordination limits. Use session `status` for a specific
+coordination issue, not routine polling. Compilation, imports, tests and editor
+transitions remain global operations, subject to project/user permission.
 
 ## Capability discovery
 
@@ -53,14 +66,16 @@ Batch entries invoke Unity handlers, so server-only tools and Python-only aliase
 called inside a batch. Compilation, build/test/bake starts and Play Mode transitions
 must also be standalone calls. All batch commands execute sequentially, regardless of `parallel`.
 
-**Always read relevant resources before using tools.** This prevents errors and provides the necessary context.
+## Quick Start: Resource-First Workflow
+
+Read only the resources needed for the task, when allowed by project/user rules.
 
 ```
 1. Check editor state     → mcpforunity://editor/state
 2. Understand the scene   → mcpforunity://scene/gameobject-api
 3. Find what you need     → find_gameobjects or resources
 4. Take action            → tools (manage_gameobject, create_script, script_apply_edits, apply_text_edits, validate_script, delete_script, get_sha, etc.)
-5. Verify results         → read_console, manage_camera(action="screenshot"), resources
+5. Verify if permitted    → targeted console/resource/screenshot; otherwise hand off
 ```
 
 **If a tool you need is not in your tool list, it is not necessarily missing.** Check these before troubleshooting the connection:
@@ -70,7 +85,10 @@ must also be standalone calls. All batch commands execute sequentially, regardle
 
 ## Critical Best Practices
 
-### 1. After Writing/Editing Scripts: Wait for Compilation and Check Console
+Compilation, inspection and verification examples in this section are conditional on
+project/user permission. They never override a rule leaving verification to the user.
+
+### 1. After Script Tools Trigger Compilation (When Permitted)
 
 ```python
 # After create_script or script_apply_edits:
@@ -169,7 +187,7 @@ read_console(
 )
 ```
 
-### 5. Always Check `mcpforunity://editor/state` Before Complex Operations
+### 5. Check `mcpforunity://editor/state` When Readiness Matters
 
 ```python
 # Read mcpforunity://editor/state to check:
@@ -244,7 +262,7 @@ uri="file:///full/path/to/file.cs"
 | **Assets** | `manage_asset`, `manage_prefabs` | Asset operations. **Prefab instantiation** is done via `manage_gameobject(action="create", prefab_path="...")`, not `manage_prefabs`. |
 | **Editor** | `manage_editor`, `execute_menu_item`, `read_console` | Editor control, package deployment (`deploy_package`/`restore_package` actions) |
 | **Testing** | `run_tests`, `get_test_job` | Unity Test Framework |
-| **Batch** | `batch_execute` | Parallel/bulk operations |
+| **Batch** | `batch_execute` | Sequential bulk operations and revision-guarded edits |
 | **Camera** | `manage_camera` | Camera management (Unity Camera + Cinemachine). **Tier 1** (always available): create, target, lens, priority, list, screenshot. **Tier 2** (requires `com.unity.cinemachine`): brain, body/aim/noise pipeline, extensions, blending, force/release. 7 presets: follow, third_person, freelook, dolly, static, top_down, side_scroller. Resource: `mcpforunity://scene/cameras`. Use `ping` to check Cinemachine availability. See [tools-reference.md](references/tools-reference.md#camera-tools). |
 | **Graphics** | `manage_graphics` | Rendering and post-processing management. 33 actions across 5 groups: **Volume** (create/configure volumes and effects, URP/HDRP), **Bake** (lightmaps, light probes, reflection probes, Edit mode only), **Stats** (draw calls, batches, memory), **Pipeline** (quality levels, pipeline settings), **Features** (URP renderer features: add, remove, toggle, reorder). Resources: `mcpforunity://scene/volumes`, `mcpforunity://rendering/stats`, `mcpforunity://pipeline/renderer-features`. Use `ping` to check pipeline status. See [tools-reference.md](references/tools-reference.md#graphics-tools). |
 | **Animation** | `manage_animation` | Optional `animation` group: Animator playback/parameters, controller states/transitions/layers/blend trees, and clip curves/events/presets. Enable with `manage_tools(action="activate", group="animation")`. See [animation tools](references/tools-reference.md#animation-tools) and [workflow](references/workflows.md#animation-workflows). |
@@ -334,7 +352,9 @@ set_active_instance(instance="MyProject@abc123")
 
 ## Reference Files
 
-For detailed schemas and examples:
+For detailed schemas and examples (the live schema takes precedence):
+
+- **[shared-editor.md](references/shared-editor.md)**: Multi-agent workflows, reservations, snapshots and direct-file coordination
 
 - **[tools-reference.md](references/tools-reference.md)**: Complete tool documentation with all parameters
 - **[resources-reference.md](references/resources-reference.md)**: All available resources and their data
