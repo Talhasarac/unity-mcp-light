@@ -130,6 +130,16 @@ batch_execute(commands=[
 
 ### 3. Use Screenshots to Verify Visual Results
 
+Only when verification is permitted. Prefer the built-in capture tools over a custom
+`WaitForEndOfFrame` coroutine: that wait can stall when Game view stops redrawing.
+Composited captures prepare a separate visible Game view without replacing Scene view,
+and fail within a bounded editor-clock wait if no frame arrives. Camera-only images
+omit screen-space UI; they are not a substitute for checking UI overlays.
+For `manage_ui(action="render_ui")` in Play Mode, repeat the original parameters plus
+the returned `data.capture_id` to poll. Respect `retry_after_ms`, stop on terminal errors,
+and never claim a pending capture produced an image. Details and custom probe guidance:
+[shared-editor.md](references/shared-editor.md#captures-and-frame-waits).
+
 ```python
 # Basic screenshot (saves to Assets/, returns file path only)
 manage_camera(action="screenshot")

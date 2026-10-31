@@ -168,49 +168,66 @@ namespace MCPForUnity.Runtime.Helpers
         }
 
 #if UNITY_EDITOR
+        // Player-loop steps and real-time budget for the synchronous composited capture.
+        private const int CompositedStepBudget = 5;
+        private const double CompositedRealTimeBudgetSeconds = 5.0;
+
         // Synchronously drive a WaitForEndOfFrame ScreenshotCapturer by pumping the editor's
         // player loop. Play-mode only; EditorApplication.Step is a no-op in edit mode.
-        private static Texture2D CaptureCompositedAfterFrame(int superSize, int timeoutSteps = 5)
+        // When no composited frame arrives within the budget (e.g. the Game view is hidden
+        // behind the Scene view), the runner is cancelled immediately and this throws.
+        private static Texture2D CaptureCompositedAfterFrame(int superSize)
         {
-            Texture2D result = null;
-            bool done = false;
-            bool callerReturned = false;
-            ScreenshotCapturer.Begin(superSize, tex =>
-            {
-                // Late completion after the spin loop timed out: caller will never consume
-                // the texture, so destroy it here to avoid leaking a Unity object.
-                if (callerReturned)
-                {
-                    if (tex != null) DestroyTexture(tex);
-                    return;
-                }
-                result = tex;
-                done = true;
-            });
+            ScreenshotCaptureOutcome outcome = null;
+            ScreenshotCaptureRequest request = ScreenshotCapturer.Begin(
+                superSize, CompositedRealTimeBudgetSeconds, o => outcome = o);
             // Step() pauses play mode as a side effect; restore the prior state so a screenshot
             // doesn't leave a running game paused (an already-paused game stays paused).
             bool wasPaused = UnityEditor.EditorApplication.isPaused;
+            double deadline = UnityEditor.EditorApplication.timeSinceStartup + CompositedRealTimeBudgetSeconds;
             try
             {
-                for (int i = 0; i < timeoutSteps && !done; i++)
+                for (int i = 0; i < CompositedStepBudget && outcome == null
+                    && UnityEditor.EditorApplication.timeSinceStartup < deadline; i++)
                 {
                     UnityEditor.EditorApplication.Step();
                 }
             }
+            catch
+            {
+                // A step can throw after the callback supplied a texture; no caller will own it.
+                DestroyTexture(outcome?.Texture);
+                throw;
+            }
             finally
             {
+                // Budget spent (or Step threw): tear the runner down now so it cannot capture
+                // later. Cancel completes synchronously and sets outcome.
+                if (outcome == null)
+                {
+                    request.Cancel(ScreenshotCaptureRequest.ReasonFrameUnavailable,
+                        $"No composited frame was produced within {CompositedStepBudget} player-loop steps. "
+                        + ScreenshotCaptureRequest.DescribeUnavailableFrame());
+                }
                 if (!wasPaused)
                     UnityEditor.EditorApplication.isPaused = false;
             }
-            callerReturned = true;
-            return result;
+
+            if (outcome != null && outcome.Succeeded)
+                return outcome.Texture;
+            throw new ScreenshotCaptureException(
+                outcome?.Reason ?? ScreenshotCaptureRequest.ReasonFrameUnavailable,
+                outcome?.Message ?? "Composited capture did not complete.");
         }
 #endif
 
         /// <summary>
         /// Captures a screenshot using ScreenCapture.CaptureScreenshotAsTexture, which captures the
         /// final composited frame including UI Toolkit overlays, post-processing, etc.
-        /// Falls back to camera-based capture if ScreenCapture returns null at runtime.
+        /// In Editor Play Mode the capture waits (bounded) for the end of a rendered frame and throws
+        /// <see cref="ScreenshotCaptureException"/> when no composited frame is available (Game view
+        /// hidden, paused without a rendered step, batch mode); it never substitutes a camera-only image.
+        /// Outside that path, falls back to camera-based capture if ScreenCapture returns null.
         /// </summary>
         public static ScreenshotCaptureResult CaptureComposited(
             string fileName = null,
@@ -229,7 +246,8 @@ namespace MCPForUnity.Runtime.Helpers
             {
 #if UNITY_EDITOR
                 // In play mode, inline ScreenCapture reads a backbuffer before UITK has
-                // composited; route through WaitForEndOfFrame instead.
+                // composited; route through WaitForEndOfFrame instead. That path throws
+                // rather than returning null, so it never reaches the camera fallback.
                 tex = Application.isPlaying
                     ? CaptureCompositedAfterFrame(result.SuperSize)
                     : ScreenCapture.CaptureScreenshotAsTexture(result.SuperSize);
@@ -761,32 +779,651 @@ namespace MCPForUnity.Runtime.Helpers
         }
     }
 
+
+    /// <summary>Terminal state of a <see cref="ScreenshotCaptureRequest"/>.</summary>
+    public enum ScreenshotCaptureStatus
+    {
+        Pending,
+        Succeeded,
+        Failed,
+        TimedOut,
+        Cancelled,
+    }
+
     /// <summary>
-    /// Transient MonoBehaviour that yields WaitForEndOfFrame, calls
-    /// ScreenCapture.CaptureScreenshotAsTexture, invokes the callback, and self-destructs.
+    /// Result delivered exactly once to a composited-capture callback. On success the receiver
+    /// owns <see cref="Texture"/> and must destroy it; on any other status Texture is null.
+    /// </summary>
+    public sealed class ScreenshotCaptureOutcome
+    {
+        internal ScreenshotCaptureOutcome(ScreenshotCaptureStatus status, Texture2D texture, string reason, string message)
+        {
+            Status = status;
+            Texture = texture;
+            Reason = reason;
+            Message = message;
+        }
+
+        public ScreenshotCaptureStatus Status { get; }
+        public Texture2D Texture { get; }
+        /// <summary>Machine-readable failure code (null on success).</summary>
+        public string Reason { get; }
+        /// <summary>Human-readable, actionable failure description (null on success).</summary>
+        public string Message { get; }
+        public bool Succeeded => Status == ScreenshotCaptureStatus.Succeeded && Texture != null;
+    }
+
+    /// <summary>Thrown when a composited (UI-including) frame could not be captured.</summary>
+    public sealed class ScreenshotCaptureException : InvalidOperationException
+    {
+        public ScreenshotCaptureException(string reason, string message) : base(message)
+        {
+            Reason = reason;
+        }
+
+        public string Reason { get; }
+    }
+
+    /// <summary>
+    /// Handle for one in-flight end-of-frame composited capture. Owns the hidden runner
+    /// GameObject and guarantees: the callback runs exactly once; the runner is destroyed on
+    /// every terminal path; a texture produced after the request ended is destroyed instead of
+    /// being delivered. The deadline uses the real/editor clock (not Time.timeScale or Game view
+    /// redraws), so a Game view hidden behind the Scene view ends in a timeout, not a hang.
+    /// </summary>
+    public sealed class ScreenshotCaptureRequest
+    {
+        public const double DefaultTimeoutSeconds = 10.0;
+
+        public const string ReasonTimeout = "capture_timeout";
+        public const string ReasonFrameUnavailable = "composited_frame_unavailable";
+        public const string ReasonNotPlaying = "not_in_play_mode";
+        public const string ReasonBatchMode = "batch_mode";
+        public const string ReasonPlayModeExited = "play_mode_exited";
+        public const string ReasonDomainReload = "domain_reload";
+        public const string ReasonRunnerDestroyed = "runner_destroyed";
+        public const string ReasonCaptureFailed = "capture_failed";
+        public const string ReasonCancelled = "cancelled";
+
+        private static readonly List<ScreenshotCaptureRequest> s_active = new List<ScreenshotCaptureRequest>();
+#if UNITY_EDITOR
+        private static bool s_editorHooksInstalled;
+#endif
+
+        private readonly Action<ScreenshotCaptureOutcome> _onComplete;
+        private readonly double _deadline;
+        private GameObject _runnerGo;
+
+        private ScreenshotCaptureRequest(int superSize, double timeoutSeconds, Action<ScreenshotCaptureOutcome> onComplete)
+        {
+            SuperSize = Mathf.Max(1, superSize);
+            TimeoutSeconds = timeoutSeconds > 0 && !double.IsInfinity(timeoutSeconds)
+                ? Math.Min(timeoutSeconds, 300.0) : DefaultTimeoutSeconds;
+            _onComplete = onComplete;
+            _deadline = Now() + TimeoutSeconds;
+        }
+
+        public int SuperSize { get; }
+        public double TimeoutSeconds { get; }
+        public ScreenshotCaptureStatus Status { get; private set; } = ScreenshotCaptureStatus.Pending;
+        public bool IsCompleted => Status != ScreenshotCaptureStatus.Pending;
+
+        internal static ScreenshotCaptureRequest Start(int superSize, double timeoutSeconds, Action<ScreenshotCaptureOutcome> onComplete)
+        {
+            var request = new ScreenshotCaptureRequest(superSize, timeoutSeconds, onComplete);
+
+            // WaitForEndOfFrame is never invoked in batch mode, and runner coroutines do not run
+            // outside Play Mode: fail now instead of queueing a wait that cannot finish.
+            if (Application.isBatchMode)
+            {
+                request.Complete(ScreenshotCaptureStatus.Failed, null, ReasonBatchMode,
+                    "Composited screen capture is unavailable in batch mode (WaitForEndOfFrame is never invoked). "
+                    + "Use a camera-based capture instead.", destroyImmediate: false);
+                return request;
+            }
+            if (!Application.isPlaying)
+            {
+                request.Complete(ScreenshotCaptureStatus.Failed, null, ReasonNotPlaying,
+                    "End-of-frame composited capture requires Play Mode.", destroyImmediate: false);
+                return request;
+            }
+
+            // Make the Game view visible once so the frame can actually be composited. This is
+            // deliberately not repeated while waiting: if the user switches tabs afterwards the
+            // request times out instead of stealing focus again.
+            ScreenshotCapturer.PrepareGameViewForCapture();
+
+            s_active.Add(request);
+#if UNITY_EDITOR
+            InstallEditorHooks();
+#endif
+            try
+            {
+                var go = new GameObject("__MCP_ScreenshotCapturer__") { hideFlags = HideFlags.HideAndDontSave };
+                request._runnerGo = go;
+                var runner = go.AddComponent<ScreenshotCapturer>();
+                runner.Request = request;
+            }
+            catch (Exception ex)
+            {
+                request.Complete(ScreenshotCaptureStatus.Failed, null, ReasonCaptureFailed,
+                    $"Could not start the screen capture runner: {ex.Message}", destroyImmediate: true);
+            }
+            return request;
+        }
+
+        /// <summary>Cancels a pending request; the callback runs synchronously with Cancelled status. No-op once completed.</summary>
+        public void Cancel(string reason = ReasonCancelled, string message = null)
+        {
+            Complete(ScreenshotCaptureStatus.Cancelled, null, reason ?? ReasonCancelled,
+                message ?? "The screen capture was cancelled.", destroyImmediate: true);
+        }
+
+        /// <summary>Explains why no composited frame arrived, based on the current editor state.</summary>
+        public static string DescribeUnavailableFrame()
+        {
+            if (Application.isBatchMode)
+                return "Unity is running in batch mode, where end-of-frame callbacks are never invoked.";
+#if UNITY_EDITOR
+            if (UnityEditor.EditorApplication.isPaused)
+                return "Play Mode is paused, so no frame is rendered. Unpause Play Mode and retry.";
+            if (!ScreenshotCapturer.IsGameViewOpen())
+                return "No Game view is open (the 'MCP Game' view may have been closed). Retry to reopen it, or open a Game view.";
+            if (!ScreenshotCapturer.IsAnyGameViewVisible())
+                return "No Game view is visible: it is hidden behind another tab (such as the Scene view or the Inspector). "
+                    + "Select a Game view or the 'MCP Game' tab so it is shown, then retry; "
+                    + "or use a camera-based screenshot if UI overlays are not needed.";
+            return "A Game view is open but did not render a frame (the Editor may be in the background, throttled or minimized). "
+                + "Bring the Editor forward and retry, or use a camera-based screenshot if UI overlays are not needed.";
+#else
+            return "The player did not render a frame (the application may be unfocused or not rendering).";
+#endif
+        }
+
+        internal void OnEndOfFrame()
+        {
+            if (IsCompleted) return;
+            if (Now() >= _deadline)
+            {
+                TimeOut(destroyImmediate: false);
+                return;
+            }
+
+            Texture2D tex = null;
+            try
+            {
+                tex = ScreenCapture.CaptureScreenshotAsTexture(SuperSize);
+            }
+            catch (Exception ex)
+            {
+                Complete(ScreenshotCaptureStatus.Failed, null, ReasonCaptureFailed,
+                    $"ScreenCapture.CaptureScreenshotAsTexture failed: {ex.Message}", destroyImmediate: false);
+                return;
+            }
+
+            if (tex == null)
+            {
+                Complete(ScreenshotCaptureStatus.Failed, null, ReasonCaptureFailed,
+                    "ScreenCapture.CaptureScreenshotAsTexture returned no image.", destroyImmediate: false);
+                return;
+            }
+            // Called from the runner's own coroutine: defer the GameObject destroy.
+            Complete(ScreenshotCaptureStatus.Succeeded, tex, null, null, destroyImmediate: false);
+        }
+
+        // fromRunner: called inside the runner's own Update, where the destroy must be deferred.
+        internal void Tick(bool fromRunner)
+        {
+            if (!IsCompleted && Now() >= _deadline)
+                TimeOut(destroyImmediate: !fromRunner);
+        }
+
+        internal void OnRunnerDestroyed()
+        {
+            _runnerGo = null;
+            Complete(ScreenshotCaptureStatus.Failed, null, ReasonRunnerDestroyed,
+                "The screen capture runner was destroyed before a frame was captured (scene change, Play Mode exit or external cleanup).",
+                destroyImmediate: false);
+        }
+
+        private void TimeOut(bool destroyImmediate)
+        {
+            Complete(ScreenshotCaptureStatus.TimedOut, null, ReasonTimeout,
+                $"No composited frame was rendered within {TimeoutSeconds:0.#} s. " + DescribeUnavailableFrame(),
+                destroyImmediate);
+        }
+
+        private void Complete(ScreenshotCaptureStatus status, Texture2D tex, string reason, string message, bool destroyImmediate)
+        {
+            if (IsCompleted)
+            {
+                // A late capture for a request that already ended must not be delivered or leaked.
+                DestroyObject(tex, immediate: destroyImmediate);
+                return;
+            }
+
+            Status = status;
+            s_active.Remove(this);
+            DestroyRunner(destroyImmediate);
+
+            var outcome = new ScreenshotCaptureOutcome(status, status == ScreenshotCaptureStatus.Succeeded ? tex : null, reason, message);
+            if (_onComplete == null)
+            {
+                DestroyObject(outcome.Texture, immediate: destroyImmediate);
+                return;
+            }
+            try
+            {
+                _onComplete(outcome);
+            }
+            catch (Exception ex)
+            {
+                DestroyObject(outcome.Texture, immediate: destroyImmediate);
+                Debug.LogError($"[MCP for Unity] Screenshot capture callback threw: {ex}");
+            }
+        }
+
+        private void DestroyRunner(bool immediate)
+        {
+            var go = _runnerGo;
+            _runnerGo = null;
+            if (go == null) return;
+
+            var runner = go.GetComponent<ScreenshotCapturer>();
+            if (runner != null) runner.Request = null;
+            DestroyObject(go, immediate);
+        }
+
+        private static void DestroyObject(UnityEngine.Object obj, bool immediate)
+        {
+            if (obj == null) return;
+            if (immediate || !Application.isPlaying)
+                UnityEngine.Object.DestroyImmediate(obj);
+            else
+                UnityEngine.Object.Destroy(obj);
+        }
+
+        private static double Now()
+        {
+#if UNITY_EDITOR
+            return UnityEditor.EditorApplication.timeSinceStartup;
+#else
+            return Time.realtimeSinceStartup;
+#endif
+        }
+
+        private static void CancelAll(string reason, string message)
+        {
+            foreach (var request in s_active.ToArray())
+                request.Cancel(reason, message);
+        }
+
+#if UNITY_EDITOR
+        // Editor update keeps ticking while Play Mode is paused or the Game view is hidden, unlike
+        // the player loop, so deadlines are enforced here rather than by the runner.
+        private static void InstallEditorHooks()
+        {
+            if (s_editorHooksInstalled) return;
+            s_editorHooksInstalled = true;
+            UnityEditor.EditorApplication.update += EditorTick;
+            UnityEditor.EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
+            UnityEditor.AssemblyReloadEvents.beforeAssemblyReload += OnBeforeAssemblyReload;
+        }
+
+        private static void EditorTick()
+        {
+            if (s_active.Count == 0) return;
+            foreach (var request in s_active.ToArray())
+                request.Tick(fromRunner: false);
+        }
+
+        private static void OnPlayModeStateChanged(UnityEditor.PlayModeStateChange change)
+        {
+            if (change == UnityEditor.PlayModeStateChange.ExitingPlayMode
+                || change == UnityEditor.PlayModeStateChange.EnteredEditMode)
+            {
+                CancelAll(ReasonPlayModeExited, "Play Mode exited before a composited frame was captured.");
+            }
+        }
+
+        private static void OnBeforeAssemblyReload()
+        {
+            CancelAll(ReasonDomainReload, "A domain reload interrupted the screen capture.");
+        }
+#endif
+    }
+
+    /// <summary>
+    /// Transient hidden runner that yields WaitForEndOfFrame and captures the composited frame
+    /// via ScreenCapture.CaptureScreenshotAsTexture. Its lifetime is owned by a
+    /// <see cref="ScreenshotCaptureRequest"/>, which bounds the wait and tears it down.
     /// </summary>
     public sealed class ScreenshotCapturer : MonoBehaviour
     {
-        private int _superSize = 1;
-        private Action<Texture2D> _onComplete;
+        // Not serialized: after a domain reload this is null and the orphaned runner removes itself.
+        internal ScreenshotCaptureRequest Request;
 
-        /// <summary>Spawns a hidden GameObject, attaches a capturer, returns immediately.</summary>
+        /// <summary>
+        /// Legacy entry point. The callback runs exactly once: with the texture on success
+        /// (caller owns it) or with null on timeout/failure/cancellation.
+        /// </summary>
         public static void Begin(int superSize, Action<Texture2D> onComplete)
         {
-            var go = new GameObject("__MCP_ScreenshotCapturer__") { hideFlags = HideFlags.HideAndDontSave };
-            var c = go.AddComponent<ScreenshotCapturer>();
-            c._superSize = Mathf.Max(1, superSize);
-            c._onComplete = onComplete;
+            Begin(superSize, ScreenshotCaptureRequest.DefaultTimeoutSeconds, outcome =>
+            {
+                if (onComplete != null)
+                    onComplete(outcome.Texture);
+                else if (outcome.Texture != null)
+                    Destroy(outcome.Texture);
+            });
         }
+
+        /// <summary>
+        /// Starts a bounded end-of-frame composited capture. The callback runs exactly once, possibly
+        /// synchronously before this returns (e.g. batch mode or not in Play Mode).
+        /// </summary>
+        public static ScreenshotCaptureRequest Begin(int superSize, double timeoutSeconds, Action<ScreenshotCaptureOutcome> onComplete)
+        {
+            return ScreenshotCaptureRequest.Start(superSize, timeoutSeconds, onComplete);
+        }
+
+        /// <summary>
+        /// Editor only, called once per capture start: makes sure some Game view is rendering without
+        /// covering the Scene view the user is looking at. Reuses a Game view that is already visible;
+        /// otherwise reuses or creates a dedicated "MCP Game" view docked beside the Inspector/Project
+        /// window when that dock is separate from the Scene view, or floating as a fallback. The
+        /// previously focused window gets focus back. Never selects a Game tab inside the Scene view's
+        /// dock. No-op in players and batch mode.
+        /// </summary>
+        public static void PrepareGameViewForCapture()
+        {
+#if UNITY_EDITOR
+            if (Application.isBatchMode) return;
+            try
+            {
+                EditorGameViewTarget.Prepare();
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[MCP for Unity] screenshot: could not prepare a Game view: {e.Message}");
+            }
+            try { UnityEditor.EditorApplication.QueuePlayerLoopUpdate(); }
+            catch { }
+#endif
+        }
+
+#if UNITY_EDITOR
+        internal static bool IsGameViewOpen()
+        {
+            var type = EditorGameViewTarget.GameViewType;
+            if (type == null) return true;
+            try { return Resources.FindObjectsOfTypeAll(type).Length > 0; }
+            catch { return true; }
+        }
+
+        /// <summary>True when a Game view is known to be visible (floating, or the selected tab of its dock).</summary>
+        internal static bool IsAnyGameViewVisible()
+        {
+            return EditorGameViewTarget.FindVisibleGameView() != null;
+        }
+
+        private static class EditorGameViewTarget
+        {
+            internal const string DedicatedTitle = "MCP Game";
+            private const string DedicatedSessionKey = "MCPForUnity.Screenshot.DedicatedGameViewId";
+            private const float DedicatedWidth = 960f;
+            private const float DedicatedHeight = 540f;
+
+            private static UnityEditor.EditorWindow s_dedicated;
+
+            // GameView, InspectorWindow and ProjectBrowser are internal editor types; every use is
+            // guarded and degrades to a floating window.
+            internal static readonly Type GameViewType = Type.GetType("UnityEditor.GameView,UnityEditor");
+
+            private static readonly System.Reflection.FieldInfo ParentField =
+                typeof(UnityEditor.EditorWindow).GetField("m_Parent",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+
+            internal static void Prepare()
+            {
+                if (GameViewType == null) return;
+
+                var visible = FindVisibleGameView();
+                if (visible != null)
+                {
+                    visible.Repaint();
+                    return;
+                }
+
+                var dedicated = FindDedicated();
+                var previousFocus = UnityEditor.EditorWindow.focusedWindow;
+
+                if (dedicated != null)
+                {
+                    // Bring it forward only when restoring focus cannot hide it again and
+                    // selecting it will not cover any Scene view.
+                    bool coversScene = WouldHideWorkspace(dedicated, previousFocus);
+                    if (!coversScene)
+                    {
+                        dedicated.Focus();
+                        RestoreFocus(previousFocus, dedicated);
+                    }
+                    dedicated.Repaint();
+                    return;
+                }
+
+                dedicated = CreateDocked(previousFocus) ?? CreateFloating();
+                if (dedicated == null) return;
+                Remember(dedicated);
+                RestoreFocus(previousFocus, dedicated);
+                dedicated.Repaint();
+            }
+
+            internal static UnityEditor.EditorWindow FindVisibleGameView()
+            {
+                if (GameViewType == null) return null;
+                foreach (var obj in Resources.FindObjectsOfTypeAll(GameViewType))
+                {
+                    if (obj is UnityEditor.EditorWindow window && IsVisible(window))
+                        return window;
+                }
+                return null;
+            }
+
+            private static UnityEditor.EditorWindow FindDedicated()
+            {
+                if (s_dedicated != null) return s_dedicated;
+                // After a domain reload the static is gone (and GameView may reset its title), so
+                // find the window by the instance id kept in SessionState.
+                int id = UnityEditor.SessionState.GetInt(DedicatedSessionKey, 0);
+                if (id == 0) return null;
+                foreach (var obj in Resources.FindObjectsOfTypeAll(GameViewType))
+                {
+                    if (obj is UnityEditor.EditorWindow window && window.GetInstanceIDCompat() == id)
+                    {
+                        s_dedicated = window;
+                        if (window.titleContent == null || window.titleContent.text != DedicatedTitle)
+                            window.titleContent = new GUIContent(DedicatedTitle);
+                        return window;
+                    }
+                }
+                UnityEditor.SessionState.EraseInt(DedicatedSessionKey);
+                return null;
+            }
+
+            private static void Remember(UnityEditor.EditorWindow window)
+            {
+                s_dedicated = window;
+                UnityEditor.SessionState.SetInt(DedicatedSessionKey, window.GetInstanceIDCompat());
+            }
+
+            private static UnityEditor.EditorWindow CreateDocked(UnityEditor.EditorWindow previousFocus)
+            {
+                var create = FindCreateWindowMethod();
+                if (create == null) return null;
+
+                foreach (var typeName in new[] { "UnityEditor.InspectorWindow,UnityEditor", "UnityEditor.ProjectBrowser,UnityEditor" })
+                {
+                    var dockType = Type.GetType(typeName);
+                    if (dockType == null) continue;
+                    var anchors = Resources.FindObjectsOfTypeAll(dockType);
+                    if (anchors.Length == 0) continue;
+                    // CreateWindow docks beside any window of that type, so every instance must
+                    // be provably outside both Scene view docks and the currently focused dock.
+                    bool safe = true;
+                    foreach (var anchor in anchors)
+                    {
+                        var anchorWindow = anchor as UnityEditor.EditorWindow;
+                        if (anchorWindow == null || !anchorWindow.docked
+                            || WouldHideWorkspace(anchorWindow, previousFocus))
+                        {
+                            safe = false;
+                            break;
+                        }
+                    }
+                    if (!safe) continue;
+
+                    UnityEditor.EditorWindow created = null;
+                    try
+                    {
+                        created = create.MakeGenericMethod(GameViewType)
+                            .Invoke(null, new object[] { DedicatedTitle, new[] { dockType } }) as UnityEditor.EditorWindow;
+                    }
+                    catch
+                    {
+                        created = null;
+                    }
+                    if (created == null) continue;
+
+                    if (WouldHideWorkspace(created, previousFocus))
+                    {
+                        // Landed on top of the Scene view after all: undo and fall back to floating.
+                        created.Close();
+                        return null;
+                    }
+                    return created;
+                }
+                return null;
+            }
+
+            private static bool WouldHideWorkspace(UnityEditor.EditorWindow window, UnityEditor.EditorWindow previousFocus)
+            {
+                // Restoring focus to another tab in this dock would immediately hide the Game view.
+                if (previousFocus != null && previousFocus != window && SharesDock(window, previousFocus) != false)
+                    return true;
+                foreach (var scene in Resources.FindObjectsOfTypeAll<UnityEditor.SceneView>())
+                    if (SharesDock(window, scene) != false) return true;
+                return false;
+            }
+
+            private static UnityEditor.EditorWindow CreateFloating()
+            {
+                var window = ScriptableObject.CreateInstance(GameViewType) as UnityEditor.EditorWindow;
+                if (window == null) return null;
+                window.titleContent = new GUIContent(DedicatedTitle);
+                window.Show();
+                var pos = window.position;
+                window.position = new Rect(pos.x, pos.y, DedicatedWidth, DedicatedHeight);
+                return window;
+            }
+
+            private static System.Reflection.MethodInfo FindCreateWindowMethod()
+            {
+                // public static T EditorWindow.CreateWindow<T>(string title, params Type[] desiredDockNextTo)
+                foreach (var method in typeof(UnityEditor.EditorWindow).GetMethods(
+                             System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static))
+                {
+                    if (method.Name != "CreateWindow" || !method.IsGenericMethodDefinition) continue;
+                    var ps = method.GetParameters();
+                    if (ps.Length == 2 && ps[0].ParameterType == typeof(string) && ps[1].ParameterType == typeof(Type[]))
+                        return method;
+                }
+                return null;
+            }
+
+            private static void RestoreFocus(UnityEditor.EditorWindow previous, UnityEditor.EditorWindow created)
+            {
+                if (previous == null || previous == created) return;
+                try { previous.Focus(); }
+                catch { }
+            }
+
+            private static bool IsVisible(UnityEditor.EditorWindow window)
+            {
+                if (!window.docked) return true;
+                return IsSelectedTab(window) == true;
+            }
+
+            // null = unknown (internal layout API unavailable).
+            private static bool? IsSelectedTab(UnityEditor.EditorWindow window)
+            {
+                var parent = GetParent(window);
+                if (parent == null) return null;
+                try
+                {
+                    var prop = parent.GetType().GetProperty("actualView",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+                        | System.Reflection.BindingFlags.NonPublic);
+                    if (prop == null) return null;
+                    return ReferenceEquals(prop.GetValue(parent), window);
+                }
+                catch
+                {
+                    return null;
+                }
+            }
+
+            // null = unknown; callers treat unknown as "shares" to protect the Scene view.
+            private static bool? SharesDock(UnityEditor.EditorWindow a, UnityEditor.EditorWindow b)
+            {
+                if (!a.docked || !b.docked) return false;
+                var pa = GetParent(a);
+                var pb = GetParent(b);
+                if (pa == null || pb == null) return null;
+                return ReferenceEquals(pa, pb);
+            }
+
+            private static object GetParent(UnityEditor.EditorWindow window)
+            {
+                if (ParentField == null || window == null) return null;
+                try { return ParentField.GetValue(window); }
+                catch { return null; }
+            }
+        }
+#endif
 
         private System.Collections.IEnumerator Start()
         {
+            if (Request == null)
+            {
+                Destroy(gameObject);
+                yield break;
+            }
+
             yield return new WaitForEndOfFrame();
-            Texture2D tex = null;
-            try { tex = ScreenCapture.CaptureScreenshotAsTexture(_superSize); }
-            catch (Exception ex) { Debug.LogError($"[MCP for Unity] CaptureScreenshotAsTexture failed: {ex.Message}"); }
-            _onComplete?.Invoke(tex);
-            Destroy(gameObject);
+
+            // Null/completed means the request already ended and tore this runner down.
+            var request = Request;
+            if (request == null || request.IsCompleted) yield break;
+            request.OnEndOfFrame();
+        }
+
+        private void Update()
+        {
+            var request = Request;
+            if (request == null)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            request.Tick(fromRunner: true);
+        }
+
+        private void OnDestroy()
+        {
+            var request = Request;
+            Request = null;
+            request?.OnRunnerDestroyed();
         }
     }
 }

@@ -809,12 +809,284 @@ namespace MCPForUnity.Editor.Tools
         // renders into them automatically every frame.
         private static readonly Dictionary<int, RenderTexture> s_panelRTs = new();
 
-        // Play-mode coroutine capture state.  Only one capture is in-flight at a
-        // time; concurrent render_ui calls while a capture is pending are rejected
-        // with an explicit error.
-        private static Texture2D s_pendingCaptureTex;
-        private static bool s_pendingCaptureDone;
-        private static bool s_pendingCaptureStarted;
+        // Play-mode end-of-frame capture state. One capture at a time, owned by the call that
+        // started it (the opaque capture_id must be supplied on follow-up calls).
+        // The capture request has a real-time deadline, so a hidden Game view, pause or Play Mode
+        // exit ends in a terminal error instead of a permanently pending capture.
+        private sealed class PlayModeUICapture
+        {
+            public string Id;
+            public string Fingerprint;
+            public double StartedAt;
+            public double CompletedAt;
+            public ScreenshotCaptureRequest Request;
+            public ScreenshotCaptureOutcome Outcome;
+        }
+
+        private const double PlayCaptureTimeoutSeconds = 10.0;
+        // Grace for the editor-update watchdog before the poll path cancels a request itself.
+        private const double PlayCaptureWatchdogGraceSeconds = 5.0;
+        // An unclaimed result (image or failure) is discarded after this long so it cannot block
+        // other callers or be returned as a stale UI image much later.
+        private const double PlayCaptureResultTtlSeconds = 60.0;
+
+        private static PlayModeUICapture s_playCapture;
+        private static bool s_playCaptureHooksInstalled;
+
+        private static object RenderUIPlayMode(string target, string uxmlPath, string fileName,
+            string resolvedFolderSpec, string resolvedFolderAbs, bool includeImage, int maxResolution,
+            string captureId)
+        {
+            InstallPlayCaptureHooks();
+            double now = EditorApplication.timeSinceStartup;
+            ExpirePlayCapture(now);
+
+            string fingerprint = string.Join("\u001f",
+                target ?? "", uxmlPath ?? "", fileName?.Trim() ?? "", resolvedFolderSpec ?? "",
+                includeImage ? "1" : "0", maxResolution.ToString());
+
+            var cap = s_playCapture;
+            if (cap != null)
+            {
+                // Identical targets do not identify an agent: only the start call receives this ID.
+                bool owns = !string.IsNullOrEmpty(captureId)
+                    && string.Equals(captureId, cap.Id, StringComparison.Ordinal);
+                if (!owns)
+                {
+                    if (!string.IsNullOrEmpty(captureId))
+                        return PlayCaptureNotFound(captureId);
+
+                    double remaining = cap.Outcome == null
+                        ? cap.StartedAt + PlayCaptureTimeoutSeconds - now
+                        : cap.CompletedAt + PlayCaptureResultTtlSeconds - now;
+                    return new ErrorResponse(
+                        "Cannot capture: another render_ui capture is "
+                        + (cap.Outcome == null ? "in progress" : "waiting to be retrieved") + ".",
+                        new { retry_after_ms = Math.Max(100, (int)Math.Ceiling(remaining * 1000.0)), reason = "capture_in_progress" });
+                }
+
+                if (!string.Equals(fingerprint, cap.Fingerprint, StringComparison.Ordinal))
+                    return new ErrorResponse("Use capture_id with the original render_ui parameters to retrieve this capture.",
+                        new { reason = "capture_parameters_changed", capture_id = cap.Id });
+
+                if (cap.Outcome == null)
+                    return PlayCapturePendingResponse(cap, target, uxmlPath, now);
+
+                s_playCapture = null;
+                return FinishPlayCapture(cap, target, uxmlPath, fileName, resolvedFolderAbs, includeImage, maxResolution);
+            }
+
+            if (!string.IsNullOrEmpty(captureId))
+                return PlayCaptureNotFound(captureId);
+
+            if (EditorApplication.isPaused)
+            {
+                return new ErrorResponse(
+                    "Cannot capture the composited UI while Play Mode is paused: no frame is rendered. Unpause Play Mode and call render_ui again.",
+                    new { reason = "play_mode_paused" });
+            }
+
+            cap = new PlayModeUICapture
+            {
+                Id = Guid.NewGuid().ToString("N"),
+                Fingerprint = fingerprint,
+                StartedAt = now,
+            };
+            s_playCapture = cap;
+            cap.Request = ScreenshotCapturer.Begin(1, PlayCaptureTimeoutSeconds, outcome => OnPlayCaptureCompleted(cap, outcome));
+
+            // Begin can fail synchronously (e.g. batch mode); report it directly.
+            if (cap.Outcome != null && !cap.Outcome.Succeeded)
+            {
+                if (ReferenceEquals(s_playCapture, cap)) s_playCapture = null;
+                return PlayCaptureFailure(cap);
+            }
+
+            return PlayCapturePendingResponse(cap, target, uxmlPath, now);
+        }
+
+        private static void OnPlayCaptureCompleted(PlayModeUICapture cap, ScreenshotCaptureOutcome outcome)
+        {
+            // A capture that was discarded or superseded must not be resurrected by a late callback.
+            if (!ReferenceEquals(s_playCapture, cap) || cap.Outcome != null)
+            {
+                if (outcome.Texture != null) UnityEngine.Object.DestroyImmediate(outcome.Texture);
+                return;
+            }
+            cap.Outcome = outcome;
+            cap.CompletedAt = EditorApplication.timeSinceStartup;
+        }
+
+        private static object PlayCapturePendingResponse(PlayModeUICapture cap, string target, string uxmlPath, double now)
+        {
+            double remaining = Math.Max(0.0, cap.StartedAt + PlayCaptureTimeoutSeconds - now);
+            return new SuccessResponse(
+                "Play-mode screenshot capture queued (bounded end-of-frame wait). Call render_ui again with the same capture_id to retrieve the image.",
+                new Dictionary<string, object>
+                {
+                    { "pending", true },
+                    { "capture_id", cap.Id },
+                    { "timeout_seconds", PlayCaptureTimeoutSeconds },
+                    { "retry_after_ms", (int)Math.Min(250, Math.Max(100, remaining * 1000.0)) },
+                    { "gameObject", (object)target ?? uxmlPath },
+                    { "note", "The capture needs one rendered Game view frame. MCP reuses a visible Game view or opens a separate "
+                        + "'MCP Game' view (docked beside the Inspector/Project when possible, otherwise floating) without covering the Scene view. "
+                        + "If no frame is rendered within the timeout the next call returns a terminal error." }
+                });
+        }
+
+        private static object PlayCaptureNotFound(string captureId)
+        {
+            return new ErrorResponse(
+                $"No render_ui capture with capture_id '{captureId}' is active. It finished and was already retrieved, "
+                + "expired, or was discarded by a Play Mode exit or domain reload. Call render_ui without capture_id to start a new capture.",
+                new { reason = "capture_not_found", capture_id = captureId });
+        }
+
+        private static object PlayCaptureFailure(PlayModeUICapture cap)
+        {
+            var outcome = cap.Outcome;
+            return new ErrorResponse(
+                $"Play-mode UI capture failed: {outcome?.Message ?? "unknown error"}",
+                new
+                {
+                    reason = outcome?.Reason ?? ScreenshotCaptureRequest.ReasonCaptureFailed,
+                    status = (outcome?.Status ?? ScreenshotCaptureStatus.Failed).ToString(),
+                    capture_id = cap.Id,
+                });
+        }
+
+        private static object FinishPlayCapture(PlayModeUICapture cap, string target, string uxmlPath, string fileName,
+            string resolvedFolderAbs, bool includeImage, int maxResolution)
+        {
+            if (!cap.Outcome.Succeeded)
+                return PlayCaptureFailure(cap);
+
+            var captureTex = cap.Outcome.Texture;
+            int captureW = captureTex.width;
+            int captureH = captureTex.height;
+            byte[] capturePng;
+            try
+            {
+                capturePng = captureTex.EncodeToPNG();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(captureTex);
+            }
+
+            string resolvedPlayName = string.IsNullOrWhiteSpace(fileName)
+                ? $"ui-render-{DateTime.Now:yyyyMMdd-HHmmss}.png"
+                : fileName.Trim();
+            if (!resolvedPlayName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
+                resolvedPlayName += ".png";
+
+            Directory.CreateDirectory(resolvedFolderAbs);
+            string playFullPath = Path.Combine(resolvedFolderAbs, resolvedPlayName).Replace('\\', '/');
+            playFullPath = EnsureUniqueFilePath(playFullPath);
+            string playProjectRelPath = ScreenshotUtility.ToProjectRelativePath(playFullPath);
+
+            File.WriteAllBytes(playFullPath, capturePng);
+            if (ScreenshotUtility.IsUnderAssets(playProjectRelPath))
+                AssetDatabase.ImportAsset(playProjectRelPath, ImportAssetOptions.ForceSynchronousImport);
+
+            var playData = new Dictionary<string, object>
+            {
+                { "path", playProjectRelPath },
+                { "fullPath", playFullPath },
+                { "width", captureW },
+                { "height", captureH },
+                { "hasContent", true },
+                { "capture_id", cap.Id },
+            };
+
+            if (!string.IsNullOrEmpty(target)) playData["gameObject"] = target;
+            if (!string.IsNullOrEmpty(uxmlPath)) playData["sourceAsset"] = uxmlPath;
+
+            if (includeImage)
+            {
+                int targetMax = maxResolution > 0 ? maxResolution : 640;
+                Texture2D fullTex = null;
+                Texture2D downscaled = null;
+                try
+                {
+                    if (captureW > targetMax || captureH > targetMax)
+                    {
+                        fullTex = new Texture2D(captureW, captureH, TextureFormat.RGBA32, false);
+                        fullTex.LoadImage(capturePng);
+                        downscaled = ScreenshotUtility.DownscaleTexture(fullTex, targetMax);
+                        playData["imageBase64"] = Convert.ToBase64String(downscaled.EncodeToPNG());
+                        playData["imageWidth"] = downscaled.width;
+                        playData["imageHeight"] = downscaled.height;
+                    }
+                    else
+                    {
+                        playData["imageBase64"] = Convert.ToBase64String(capturePng);
+                        playData["imageWidth"] = captureW;
+                        playData["imageHeight"] = captureH;
+                    }
+                }
+                finally
+                {
+                    if (fullTex != null) UnityEngine.Object.DestroyImmediate(fullTex);
+                    if (downscaled != null) UnityEngine.Object.DestroyImmediate(downscaled);
+                }
+            }
+
+            return new SuccessResponse($"UI render saved to '{playProjectRelPath}'.", playData);
+        }
+
+        private static void ExpirePlayCapture(double now)
+        {
+            var cap = s_playCapture;
+            if (cap == null) return;
+
+            if (cap.Outcome == null)
+            {
+                // Watchdog backup: the request enforces its own deadline from editor update; if that
+                // somehow did not fire, cancel here so the state can never stay pending forever.
+                if (now - cap.StartedAt > PlayCaptureTimeoutSeconds + PlayCaptureWatchdogGraceSeconds)
+                {
+                    cap.Request?.Cancel(ScreenshotCaptureRequest.ReasonTimeout,
+                        $"No composited frame was rendered within {PlayCaptureTimeoutSeconds:0.#} s. "
+                        + ScreenshotCaptureRequest.DescribeUnavailableFrame());
+                    if (cap.Outcome == null)
+                    {
+                        // Request reference lost (should not happen); fail the capture locally.
+                        s_playCapture = null;
+                    }
+                }
+                return;
+            }
+
+            if (now - cap.CompletedAt > PlayCaptureResultTtlSeconds)
+                DiscardPlayCapture();
+        }
+
+        private static void DiscardPlayCapture()
+        {
+            var cap = s_playCapture;
+            s_playCapture = null;
+            if (cap == null) return;
+            cap.Request?.Cancel(ScreenshotCaptureRequest.ReasonCancelled, "The render_ui capture was discarded.");
+            var tex = cap.Outcome?.Texture;
+            if (tex != null) UnityEngine.Object.DestroyImmediate(tex);
+        }
+
+        private static void InstallPlayCaptureHooks()
+        {
+            if (s_playCaptureHooksInstalled) return;
+            s_playCaptureHooksInstalled = true;
+            EditorApplication.playModeStateChanged += change =>
+            {
+                if (change == PlayModeStateChange.ExitingPlayMode || change == PlayModeStateChange.EnteredEditMode)
+                    DiscardPlayCapture();
+            };
+            AssemblyReloadEvents.beforeAssemblyReload += DiscardPlayCapture;
+            EditorApplication.quitting += DiscardPlayCapture;
+            // Reclaim abandoned textures even when no caller polls again.
+            EditorApplication.update += () => ExpirePlayCapture(EditorApplication.timeSinceStartup);
+        }
 
         private static object RenderUI(JObject @params)
         {
@@ -848,112 +1120,25 @@ namespace MCPForUnity.Editor.Tools
             // ── Play-mode capture via ScreenCapture coroutine ──────────────────────
             // PanelSettings.targetTexture is read in the same frame it is assigned,
             // so the RT is always blank in a synchronous tool call.  In play mode we
-            // dispatch a WaitForEndOfFrame coroutine that uses ScreenCapture, which
-            // captures the fully-composited game view (including UI Toolkit overlays).
-            // First call: queues the capture and returns "pending".
-            // Second call: result is ready – save PNG and return data.
+            // dispatch a bounded WaitForEndOfFrame capture of the fully-composited game
+            // view (including UI Toolkit overlays).
+            // First call: queues the capture and returns pending + capture_id.
+            // Follow-up call (same capture_id AND original parameters): returns the PNG, a
+            // terminal error (timeout, Game view not rendering, Play Mode exit), or
+            // pending again while the bounded wait is still running.
+            string captureId = p.Get("capture_id") ?? p.Get("captureId");
             if (Application.isPlaying)
             {
-                // Build the output paths (used by both the pending and ready branches)
-                string resolvedPlayName = string.IsNullOrWhiteSpace(fileName)
-                    ? $"ui-render-{DateTime.Now:yyyyMMdd-HHmmss}.png"
-                    : fileName.Trim();
-                if (!resolvedPlayName.EndsWith(".png", StringComparison.OrdinalIgnoreCase))
-                    resolvedPlayName += ".png";
-
-                Directory.CreateDirectory(resolvedFolderAbs);
-                string playFullPath = Path.Combine(resolvedFolderAbs, resolvedPlayName).Replace('\\', '/');
-                playFullPath = EnsureUniqueFilePath(playFullPath);
-                string playProjectRelPath = ScreenshotUtility.ToProjectRelativePath(playFullPath);
-
-                // ── Case 1: capture is ready ──────────────────────────────────────
-                if (s_pendingCaptureDone && s_pendingCaptureTex != null)
-                {
-                    var captureTex = s_pendingCaptureTex;
-                    s_pendingCaptureDone = false;
-                    s_pendingCaptureTex = null;
-
-                    int captureW = captureTex.width;
-                    int captureH = captureTex.height;
-                    byte[] capturePng = captureTex.EncodeToPNG();
-                    UnityEngine.Object.DestroyImmediate(captureTex);
-
-                    File.WriteAllBytes(playFullPath, capturePng);
-                    if (ScreenshotUtility.IsUnderAssets(playProjectRelPath))
-                        AssetDatabase.ImportAsset(playProjectRelPath, ImportAssetOptions.ForceSynchronousImport);
-
-                    var playData = new Dictionary<string, object>
-                    {
-                        { "path", playProjectRelPath },
-                        { "fullPath", playFullPath },
-                        { "width", captureW },
-                        { "height", captureH },
-                        { "hasContent", true },
-                    };
-
-                    if (!string.IsNullOrEmpty(target)) playData["gameObject"] = target;
-                    if (!string.IsNullOrEmpty(uxmlPath)) playData["sourceAsset"] = uxmlPath;
-
-                    if (includeImage)
-                    {
-                        int targetMax = maxResolution > 0 ? maxResolution : 640;
-                        Texture2D downscaled = null;
-                        try
-                        {
-                            var fullTex = new Texture2D(captureW, captureH, TextureFormat.RGBA32, false);
-                            fullTex.LoadImage(capturePng);
-                            if (captureW > targetMax || captureH > targetMax)
-                            {
-                                downscaled = ScreenshotUtility.DownscaleTexture(fullTex, targetMax);
-                                playData["imageBase64"] = Convert.ToBase64String(downscaled.EncodeToPNG());
-                                playData["imageWidth"] = downscaled.width;
-                                playData["imageHeight"] = downscaled.height;
-                            }
-                            else
-                            {
-                                playData["imageBase64"] = Convert.ToBase64String(capturePng);
-                                playData["imageWidth"] = captureW;
-                                playData["imageHeight"] = captureH;
-                            }
-                            UnityEngine.Object.DestroyImmediate(fullTex);
-                        }
-                        finally
-                        {
-                            if (downscaled != null) UnityEngine.Object.DestroyImmediate(downscaled);
-                        }
-                    }
-
-                    return new SuccessResponse($"UI render saved to '{playProjectRelPath}'.", playData);
-                }
-
-                // ── Case 2: start a new capture ───────────────────────────────────
-                // Only one capture in flight at a time.  If one is already pending,
-                // reject rather than silently overwriting the state.
-                if (s_pendingCaptureStarted)
-                {
-                    return new ErrorResponse(
-                        "Cannot capture: another capture is already in progress.",
-                        new { retry_after_ms = 100, reason = "capture_in_progress" });
-                }
-
-                s_pendingCaptureDone = false;
-                s_pendingCaptureTex = null;
-                s_pendingCaptureStarted = true;
-                ScreenshotCapturer.Begin(1, tex =>
-                {
-                    s_pendingCaptureTex = tex;
-                    s_pendingCaptureDone = true;
-                    s_pendingCaptureStarted = false;
-                });
-
-                return new SuccessResponse(
-                    "Play-mode screenshot capture queued (WaitForEndOfFrame). Call render_ui again to retrieve the rendered image.",
-                    new Dictionary<string, object>
-                    {
-                        { "pending", true },
-                        { "gameObject", (object)target ?? uxmlPath },
-                        { "note", "A screen capture was scheduled for the end of this frame. Call render_ui once more to get the result." }
-                    });
+                return RenderUIPlayMode(target, uxmlPath, fileName, resolvedFolderSpec, resolvedFolderAbs,
+                    includeImage, maxResolution, captureId);
+            }
+            if (!string.IsNullOrEmpty(captureId))
+            {
+                // A follow-up poll after Play Mode ended must not silently become an edit-mode render.
+                return new ErrorResponse(
+                    $"render_ui capture '{captureId}' ended because Play Mode is no longer running. "
+                    + "Call render_ui without capture_id to render in edit mode, or enter Play Mode and start a new capture.",
+                    new { reason = ScreenshotCaptureRequest.ReasonPlayModeExited, capture_id = captureId });
             }
             // ── End play-mode branch ────────────────────────────────────────────────
 

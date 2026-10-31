@@ -38,8 +38,16 @@ _VALID_EXTENSIONS = {".uxml", ".uss"}
         "6. Use get_visual_tree to inspect the result\n"
         "7. Use modify_visual_element to change text, classes, or inline styles on live elements\n"
         "8. Use render_ui to capture a visual preview for self-evaluation\n"
-        "   - In play mode: first call queues a WaitForEndOfFrame screen capture and returns pending=true;\n"
-        "     call render_ui a second time to retrieve the saved PNG (hasContent will be true).\n"
+        "   - In play mode: first call queues a bounded end-of-frame screen capture and returns pending=true\n"
+        "     with a capture_id; repeat the original parameters plus capture_id to collect the PNG (hasContent=true).\n"
+        "     The capture needs one rendered Game view frame: MCP reuses a visible Game view, otherwise opens a\n"
+        "     separate 'MCP Game' view (docked beside the Inspector/Project when that is separate from the Scene\n"
+        "     view, else floating) once, without covering the Scene view or taking focus away from it.\n"
+        "     It is never left pending: if no frame renders within ~10 s (Game view hidden behind another tab,\n"
+        "     Play Mode paused, batch mode) or Play Mode exits / scripts reload, the follow-up call returns a\n"
+        "     terminal error with a reason (capture_timeout, play_mode_paused, play_mode_exited, ...). Make a\n"
+        "     Game view visible and start a new capture. It never substitutes a camera-only image for the UI.\n"
+        "     Calls without the matching ID get capture_in_progress until the result is collected or expires (60 s).\n"
         "   - In editor mode: assigns a RenderTexture to PanelSettings (best-effort; may stay blank).\n"
         "9. Use detach_ui_document to remove UIDocument from a GameObject\n"
         "10. Use delete to remove .uxml/.uss files\n\n"
@@ -120,6 +128,9 @@ async def manage_ui(
     screenshot_file_name: Annotated[str,
                                      "Custom file name for the render output (default: auto-generated). "
                                      "For render_ui."] | None = None,
+    capture_id: Annotated[str,
+                           "For render_ui in play mode: the capture_id returned by the pending response. Pass it on "
+                           "follow-up calls with the original render parameters to retrieve exactly that capture (or its terminal error). Required for polling; omit only to start a capture."] | None = None,
     output_folder: Annotated[str,
                               "Optional folder for the render output. Project-relative (e.g. 'Assets/Screenshots' or "
                               "'Captures') or absolute path inside the project. Overrides the user's Editor preference. "
@@ -224,6 +235,8 @@ async def manage_ui(
         params_dict["max_resolution"] = max_resolution
     if screenshot_file_name is not None:
         params_dict["file_name"] = screenshot_file_name
+    if capture_id is not None and capture_id.strip():
+        params_dict["capture_id"] = capture_id.strip()
     if output_folder is not None and output_folder.strip():
         params_dict["output_folder"] = output_folder.strip()
 

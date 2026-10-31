@@ -89,3 +89,41 @@ in one working directory do not isolate edits. Separate worktrees can isolate co
 preparation, but the live Unity Editor still uses its own project directory.
 Never overwrite or revert another agent's changes. Scene saves, saving all dirty
 assets and Undo can affect work from multiple agents.
+
+## Captures and frame waits
+
+Only capture or run probes when the user/project permits them. Play Mode composited
+captures reuse a visible Game view, otherwise prepare a reusable **MCP Game** window
+beside Inspector/Project when those docks are separate from Scene view and the focused
+window. A floating window is the fallback; the user can dock it once in a separate area.
+MCP restores the previously focused window and does not repeatedly pull focus back.
+Keep Game view visible while it renders. Docking is best-effort across Unity versions;
+view size can change image dimensions and responsive UI layout.
+
+For UI Toolkit capture, the initial request returns `pending` and `data.capture_id`.
+Poll with **that ID and all the original parameters**, following `retry_after_ms`.
+Do not start a new capture for each poll. Without the ID, identical parameters do not
+identify the original caller and cannot collect its result. Results expire 60 seconds
+after completion if unclaimed. A changed parameter set returns `capture_parameters_changed`.
+
+```python
+capture_args = dict(action="render_ui", target="UICanvas", include_image=True)
+started = manage_ui(**capture_args)
+# If data.pending is true, wait the returned retry_after_ms, then:
+result = manage_ui(**capture_args, capture_id=started["data"]["capture_id"])
+# Repeat only while pending, using the same ID. Stop on success or a terminal error.
+```
+
+The asynchronous wait has a 10-second editor-clock deadline; synchronous composited
+camera screenshots have a smaller five-step / five-second budget. The deadline is
+processed when the Editor can update, not by the stalled frame coroutine. A completely
+blocked Editor cannot service any watchdog until it resumes. Timeout, capture failure,
+Play Mode exit and script reload cancel the request and clean up the capture runner.
+Do not silently swap to a camera-only image if the task needs UI overlays. A new Game
+view may need another request before it has rendered its first frame.
+
+For custom agent probes, use a normal frame/editor-update wait when only another
+logic update is needed. `yield return null` does **not** establish that compositing
+finished. If real end-of-frame capture is needed, use the bounded screenshot helper or
+an editor-clock deadline outside that coroutine, cancellation and cleanup. Never leave
+`WaitForEndOfFrame` or a scaled-time timeout as the only way a probe can finish.

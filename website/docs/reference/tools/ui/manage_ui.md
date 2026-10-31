@@ -25,8 +25,16 @@ UI Toolkit workflow:
 6. Use get_visual_tree to inspect the result
 7. Use modify_visual_element to change text, classes, or inline styles on live elements
 8. Use render_ui to capture a visual preview for self-evaluation
-   - In play mode: first call queues a WaitForEndOfFrame screen capture and returns pending=true;
-     call render_ui a second time to retrieve the saved PNG (hasContent will be true).
+   - In play mode: first call queues a bounded end-of-frame screen capture and returns pending=true
+     with a capture_id; repeat the original parameters plus capture_id to collect the PNG (hasContent=true).
+     The capture needs one rendered Game view frame: MCP reuses a visible Game view, otherwise opens a
+     separate 'MCP Game' view (docked beside the Inspector/Project when that is separate from the Scene
+     view, else floating) once, without covering the Scene view or taking focus away from it.
+     It is never left pending: if no frame renders within ~10 s (Game view hidden behind another tab,
+     Play Mode paused, batch mode) or Play Mode exits / scripts reload, the follow-up call returns a
+     terminal error with a reason (capture_timeout, play_mode_paused, play_mode_exited, ...). Make a
+     Game view visible and start a new capture. It never substitutes a camera-only image for the UI.
+     Calls without the matching ID get capture_in_progress until the result is collected or expires (60 s).
    - In editor mode: assigns a RenderTexture to PanelSettings (best-effort; may stay blank).
 9. Use detach_ui_document to remove UIDocument from a GameObject
 10. Use delete to remove .uxml/.uss files
@@ -53,6 +61,7 @@ Important: Always use <ui:Style> (with the ui: namespace prefix) in UXML, not ba
 | `include_image` | `bool \| None` | — | Return inline base64 PNG in the response (default false). For render_ui. |
 | `max_resolution` | `int \| None` | — | Max resolution for inline base64 image (default 640). For render_ui. |
 | `screenshot_file_name` | `str \| None` | — | Custom file name for the render output (default: auto-generated). For render_ui. |
+| `capture_id` | `str \| None` | — | Play Mode render_ui capture ID returned by the initial request. Required on follow-up calls with the original parameters; omit to start a new capture. |
 | `output_folder` | `str \| None` | — | Optional folder for the render output. Project-relative (e.g. 'Assets/Screenshots' or 'Captures') or absolute path inside the project. Overrides the user's Editor preference. If omitted, falls back to the Editor preference, then to the built-in default (Assets/Screenshots). For render_ui. |
 | `stylesheet` | `str \| None` | — | Path to USS stylesheet to link (e.g., 'Assets/UI/Styles.uss'). For link_stylesheet. |
 | `filter_type` | `str \| None` | — | Filter UI assets by type: 'uxml', 'uss', 'PanelSettings', or omit for all. For list. |

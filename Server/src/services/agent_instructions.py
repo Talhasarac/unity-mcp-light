@@ -52,6 +52,14 @@ Available capabilities:
 - manage_script accepts create/read/delete. Edit with apply_text_edits or script_apply_edits, not manage_script(action="update").
 - Batch entries execute Unity-side handlers, not arbitrary Python-only tools. Session management, group activation and instance routing belong outside a batch. Batch commands always execute sequentially; parallel is a legacy hint. Compilation, build/test/bake starts and Play Mode transitions must be standalone calls.
 
+
+Captures and frame waits:
+- When capture/verification is authorized, prefer manage_camera screenshots or manage_ui(action="render_ui") over custom unbounded capture coroutines.
+- Composited Play Mode captures need a rendered Game view frame. MCP reuses a visible Game view or opens a separate MCP Game view beside Inspector/Project where safe, otherwise floating, and restores the previous focus. Keep it visible; do not repeatedly switch the user's Scene tab. Camera-only and explicit scene_view captures do not need that Game view.
+- For render_ui, keep the pending response's data.capture_id. Repeat the original render parameters plus capture_id to poll, respecting retry_after_ms. A call without that ID cannot collect another capture, even with identical parameters. Stop on terminal errors; unclaimed results expire after 60 seconds.
+- capture_timeout/composited_frame_unavailable means no usable composited frame arrived; do not claim a screenshot succeeded or silently substitute a camera image that omits UI overlays. Reusing/resizing Game views can change capture dimensions and responsive UI layout.
+- In custom probes, never depend on an unbounded WaitForEndOfFrame: switching away from Game view can suspend it. Use a regular frame/editor-update wait for logic that only needs the next update; this does not prove the UI has rendered. Real composited captures need an editor-clock deadline, cancellation and cleanup on timeout, Play Mode exit and reload. Never drive timeouts from the same stalled coroutine or release a still-running unrelated mutation.
+
 Resources vs Tools:
 - Use RESOURCES to read editor state (mcpforunity://editor/state, mcpforunity://project/info, mcpforunity://project/tags, mcpforunity://tests, etc)
 - Use TOOLS to perform actions and mutations (manage_editor for play mode control, tag/layer management, etc)

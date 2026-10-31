@@ -757,6 +757,14 @@ manage_ui(
 # Returns: hierarchy of VisualElements with type, name, classes, styles, text, children
 ```
 
+**Play Mode capture:** `manage_ui(action="render_ui", target="UICanvas", include_image=True)`
+returns `pending` and `data.capture_id`. Repeat the original parameters plus that ID to
+collect the image or terminal error; follow `retry_after_ms`. No ID means a new request,
+not ownership of an existing capture. A separate visible MCP Game view is prepared as
+needed, preserving Scene view. The capture wait expires after 10 seconds on the editor
+clock; unclaimed results expire after 60 seconds. Camera-only images are never silently
+substituted for composited UI. See [shared-editor.md](shared-editor.md#captures-and-frame-waits).
+
 **UI Toolkit workflow:**
 
 1. Create UXML (structure, like HTML) and USS (styling, like CSS) files

@@ -594,8 +594,6 @@ namespace MCPForUnity.Editor.Tools
                 // When a specific camera IS requested, use camera-based capture.
                 if (targetCamera != null)
                 {
-                    if (!Application.isBatchMode) EnsureGameView();
-
                     string folderOverride = ScreenshotPreferences.Resolve(cmd.outputFolder);
                     ScreenshotCaptureResult result = ScreenshotUtility.CaptureFromCameraToProjectFolder(
                         targetCamera, fileName, resolvedSuperSize, ensureUniqueFileName: true,
@@ -610,13 +608,23 @@ namespace MCPForUnity.Editor.Tools
 
                 if (includeImage && Application.isPlaying)
                 {
-                    if (!Application.isBatchMode) EnsureGameView();
-
+                    // CaptureComposited prepares the Game view once itself; a composited frame
+                    // that never arrives is a bounded, explicit failure (no camera substitution).
                     string folderOverride = ScreenshotPreferences.Resolve(cmd.outputFolder);
-                    ScreenshotCaptureResult result = ScreenshotUtility.CaptureComposited(
-                        fileName, resolvedSuperSize, ensureUniqueFileName: true,
-                        includeImage: true, maxResolution: maxResolution,
-                        folderOverride: folderOverride);
+                    ScreenshotCaptureResult result;
+                    try
+                    {
+                        result = ScreenshotUtility.CaptureComposited(
+                            fileName, resolvedSuperSize, ensureUniqueFileName: true,
+                            includeImage: true, maxResolution: maxResolution,
+                            folderOverride: folderOverride);
+                    }
+                    catch (ScreenshotCaptureException ex)
+                    {
+                        return new ErrorResponse(
+                            $"Composited screenshot unavailable: {ex.Message}",
+                            new { reason = ex.Reason, captureSource = "game_view_composited" });
+                    }
 
                     if (ScreenshotUtility.IsUnderAssets(result.ProjectRelativePath))
                         AssetDatabase.ImportAsset(result.ProjectRelativePath, ImportAssetOptions.ForceSynchronousImport);
@@ -638,8 +646,6 @@ namespace MCPForUnity.Editor.Tools
                     {
                         return new ErrorResponse("No camera found in the scene. Add a Camera to use screenshot with include_image outside of Play mode.");
                     }
-
-                    if (!Application.isBatchMode) EnsureGameView();
 
                     string folderOverride = ScreenshotPreferences.Resolve(cmd.outputFolder);
                     ScreenshotCaptureResult result;
@@ -687,6 +693,8 @@ namespace MCPForUnity.Editor.Tools
                 }
 #endif
 
+                // ScreenCapture.CaptureScreenshot writes on a later Game view frame; make sure one
+                // renders without covering the user's Scene view.
                 if (!Application.isBatchMode) EnsureGameView();
 
                 string defaultFolderOverride = ScreenshotPreferences.Resolve(cmd.outputFolder);
@@ -1500,44 +1508,14 @@ namespace MCPForUnity.Editor.Tools
         {
             try
             {
-                // Ensure a Game View exists and has a chance to repaint before capture.
-                try
-                {
-                    if (!EditorApplication.ExecuteMenuItem("Window/General/Game"))
-                    {
-                        // Some Unity versions expose hotkey suffixes in menu paths.
-                        EditorApplication.ExecuteMenuItem("Window/General/Game %2");
-                    }
-                }
-                catch (Exception e)
-                {
-                    try { McpLog.Debug($"[ManageScene] screenshot: failed to open Game View via menu item: {e.Message}"); } catch { }
-                }
-
-                try
-                {
-                    var gameViewType = Type.GetType("UnityEditor.GameView,UnityEditor");
-                    if (gameViewType != null)
-                    {
-                        var window = EditorWindow.GetWindow(gameViewType);
-                        window?.Repaint();
-                    }
-                }
-                catch (Exception e)
-                {
-                    try { McpLog.Debug($"[ManageScene] screenshot: failed to repaint Game View: {e.Message}"); } catch { }
-                }
+                // Shared one-shot preparation: reuse a visible Game view or a separate "MCP Game" view
+                // without covering the active Scene view, then queue a player-loop update.
+                ScreenshotCapturer.PrepareGameViewForCapture();
 
                 try { SceneView.RepaintAll(); }
                 catch (Exception e)
                 {
                     try { McpLog.Debug($"[ManageScene] screenshot: failed to repaint Scene View: {e.Message}"); } catch { }
-                }
-
-                try { EditorApplication.QueuePlayerLoopUpdate(); }
-                catch (Exception e)
-                {
-                    try { McpLog.Debug($"[ManageScene] screenshot: failed to queue player loop update: {e.Message}"); } catch { }
                 }
             }
             catch (Exception e)

@@ -2,6 +2,14 @@
 
 Light uses independent semantic versioning starting with v1.0.0. Earlier 10.x numbers identify the upstream MCP for Unity baseline; they are not earlier releases in Light's v1 sequence. Original upstream attribution and license notices remain intact.
 
+## v1.0.4 — Capture recovery without replacing Scene view — 2026-10-31
+
+- Reuse a visible Game view or prepare a separate MCP Game view beside Inspector/Project when safe, otherwise floating. Restore the previously focused window without repeatedly switching tabs.
+- Bound composited end-of-frame captures with an editor-clock deadline and clean up on timeout, Play Mode exit, reload, cancellation and failure. Do not silently substitute camera-only images for Play Mode UI captures.
+- Require the returned `capture_id` and original arguments when polling `render_ui`, preventing identical requests from collecting another capture. Reclaim abandoned images after 60 seconds.
+- Update MCP initialization instructions, tool schemas, distributed skills and UI tool reference with the capture workflow and custom-probe guidance.
+- Source-only event-order review completed; no compiles, tests or live checks run. See [capture recovery](docs/capture-recovery.md) for limits and user verification handoff.
+
 ## v1.0.3 — Automatic agent guidance — 2026-10-31
 
 - Share one instruction builder across native HTTP/stdio and the Claude Desktop bridge, supplying coordination guidance during MCP initialization without copy/paste.
