@@ -44,16 +44,30 @@ def create_desktop_bridge(url: str) -> FastMCPProxy:
         client_factory=backend.new_stateful,
         lifespan=lifespan,
         instructions=build_instructions() + "\nTools are forwarded to the running Unity MCP Light HTTP server. "
-        "If it is unavailable, start it with Repair Connection in Unity and reconnect this client.",
+        "If it is unavailable, run unity-mcp connection ensure --project <Unity-project-root> "
+        "from a terminal and reconnect this client. Unity must be open with HTTP Local selected. "
+        "The proxy's --project mode bootstraps the local server on client startup.",
     )
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--url", required=True, type=http_endpoint)
+    target = parser.add_mutually_exclusive_group(required=True)
+    target.add_argument("--url", type=http_endpoint)
+    target.add_argument("--project", help="Open Unity project to bootstrap automatically on an available local port.")
+    parser.add_argument("--server-port", type=int, default=0, help="Project bootstrap port (0 = auto).")
+    parser.add_argument("--wait-seconds", type=int, default=120, help="Project bootstrap timeout.")
     args = parser.parse_args()
+    url = args.url
+    if args.project:
+        from cli.connection_bootstrap import ensure_connection
+
+        try:
+            url = ensure_connection(args.project, args.server_port, args.wait_seconds)["mcp_url"]
+        except (OSError, ValueError, RuntimeError, TimeoutError) as exc:
+            parser.exit(1, f"Unity connection bootstrap failed: {exc}\n")
     # Only MCP frames belong on stdout. FastMCP sends diagnostics to stderr.
-    create_desktop_bridge(args.url).run(transport="stdio", show_banner=False)
+    create_desktop_bridge(url).run(transport="stdio", show_banner=False)
 
 
 if __name__ == "__main__":

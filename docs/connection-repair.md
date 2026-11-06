@@ -1,5 +1,10 @@
 # Repairing a client connection
 
+Agents with terminal access can also use `unity-mcp connection ensure --project
+"/path/to/UnityProject"` to start/recover HTTP Local without opening this panel.
+The project-based proxy can do this on client startup. See [agent startup](agent-startup.md)
+for automatic port selection, configuration examples and limits.
+
 On **Connect**, select the affected client under **Client Configuration**, choose the desired server transport and URL, then click **Repair Connection** in the **Server** section. The button remains available after the mismatch banner disappears, including when a server launch failed and needs another attempt.
 
 The repair always applies configuration; it never toggles registration off. It reads the client configuration back, starts the local HTTP server if needed, and connects/checks Unity's bridge. An existing healthy server is reused. A stale Unity session can be reconnected without stopping the shared server. Remote mode only connects to the supplied server; it does not launch one.

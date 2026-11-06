@@ -21,6 +21,7 @@ namespace MCPForUnity.Editor.Helpers
         private const string RemotePrefKey = EditorPrefKeys.HttpRemoteBaseUrl;
         private const string DefaultLocalBaseUrl = "http://127.0.0.1:8080";
         private const string DefaultRemoteBaseUrl = "";
+        internal const string SessionLocalUrlKey = "MCPForUnity.AgentLocalHttpUrl";
 
         /// <summary>
         /// Returns the normalized base URL for the currently active HTTP scope.
@@ -51,6 +52,8 @@ namespace MCPForUnity.Editor.Helpers
         /// </summary>
         public static string GetLocalBaseUrl()
         {
+            string sessionUrl = SessionState.GetString(SessionLocalUrlKey, "");
+            if (!string.IsNullOrEmpty(sessionUrl)) return sessionUrl;
             string stored = EditorPrefs.GetString(LocalPrefKey, DefaultLocalBaseUrl);
             return NormalizeBaseUrl(stored, DefaultLocalBaseUrl, remoteScope: false);
         }
@@ -60,6 +63,7 @@ namespace MCPForUnity.Editor.Helpers
         /// </summary>
         public static void SaveLocalBaseUrl(string userValue)
         {
+            SessionState.EraseString(SessionLocalUrlKey);
             string normalized = NormalizeBaseUrl(userValue, DefaultLocalBaseUrl, remoteScope: false);
             EditorPrefs.SetString(LocalPrefKey, normalized);
         }
@@ -350,7 +354,7 @@ namespace MCPForUnity.Editor.Helpers
             return trimmed;
         }
 
-        private static string AppendPathSegment(string baseUrl, string segment)
+        internal static string AppendPathSegment(string baseUrl, string segment)
         {
             return $"{baseUrl.TrimEnd('/')}/{segment}";
         }

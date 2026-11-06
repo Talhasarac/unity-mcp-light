@@ -17,6 +17,12 @@ Model Context Protocol server for Unity Editor integration. Control Unity throug
 
 ## Installation
 
+For startup from an agent without pressing Unity's server controls, use
+`unity-mcp connection ensure --project "/path/to/UnityProject"`, or configure
+`mcp-for-unity-proxy --project "/path/to/UnityProject"`. This requires the matching
+updated Unity package, an open editor and HTTP Local selected. See
+[agent startup](../docs/agent-startup.md) for source-development commands and client setup.
+
 ### Option 1: Light from GitHub
 
 Install this fork using `uvx`. The PyPI package is upstream, not Light. The examples below pin the matching `v1.0.2` server.

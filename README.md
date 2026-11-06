@@ -67,6 +67,13 @@ examples; optional tool groups cannot restore tools removed from Light.
 
 The normal path is `manage_prefabs get_info` → `inspect_prefab tree` → `node` or `refs`.
 
+**Agent-controlled startup.** Agents can run `unity-mcp connection ensure --project
+"/path/to/UnityProject"` without a live MCP connection. Unity starts/reconnects its
+HTTP Local bridge and returns the URL, selecting a free port when needed. Configure
+`mcp-for-unity-proxy --project "/path/to/UnityProject"` to request startup whenever
+an MCP client connects. The project must be open in Unity with HTTP Local selected.
+See [agent startup and recovery](docs/agent-startup.md).
+
 ## What was removed
 
 | Tool | What it did |

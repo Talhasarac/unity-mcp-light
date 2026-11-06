@@ -16,8 +16,9 @@ namespace MCPForUnity.Editor.Services
         /// per-port launch log. Stops any existing server on the port and clears stale artifacts first.
         /// </summary>
         /// <param name="quiet">When true, skip confirmation dialogs (used by auto-start).</param>
+        /// <param name="restartExisting">When false, never stop an existing listener (agent bootstrap).</param>
         /// <returns>True if server was started successfully, false otherwise</returns>
-        bool StartLocalHttpServer(bool quiet = false);
+        bool StartLocalHttpServer(bool quiet = false, bool restartExisting = true);
 
         /// <summary>
         /// Gets the launch-log path for the configured local HTTP server port, or null if unavailable.

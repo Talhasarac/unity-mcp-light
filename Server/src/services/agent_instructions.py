@@ -27,6 +27,10 @@ User instructions and project rules take precedence over the workflows below. Do
 
 {custom_tools_note}
 
+Local startup and recovery:
+- If HTTP Local is stopped/disconnected and terminal access is allowed, run unity-mcp connection ensure --project "<Unity project root>" with the matching Light server, or uv run --directory "<checkout>/Server" unity-mcp connection ensure --project "<Unity project root>" from source. Unity must already be open with the updated package and HTTP Local selected.
+- Use the returned mcp_url and instance; default --server-port 0 selects a free port or reuses a healthy connection. Agents sharing one editor should share its server. The project-based mcp-for-unity-proxy --project "<Unity project root>" requests startup when a client connects. Reconnect the client after backend recovery. This does not launch Unity, switch stdio/remote transports, or rewrite client registrations.
+
 Targeting Unity instances:
 - Use the resource mcpforunity://instances to list active Unity sessions (Name@hash).
 - When multiple instances are connected, call set_active_instance with the exact Name@hash before using tools/resources to pin routing for the whole session. The server will error if multiple are connected and no active instance is set.

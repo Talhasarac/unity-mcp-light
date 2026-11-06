@@ -236,7 +236,7 @@ namespace MCPForUnity.Editor.Services
         /// stdout/stderr to Library/MCPForUnity/Logs/server-launch-{port}.log.
         /// Stops any existing server on the port and clears stale build artifacts first.
         /// </summary>
-        public bool StartLocalHttpServer(bool quiet = false)
+        public bool StartLocalHttpServer(bool quiet = false, bool restartExisting = true)
         {
             /// Clean stale Python build artifacts when using a local dev server path
             AssetPathUtility.CleanLocalServerBuildArtifacts();
@@ -254,7 +254,7 @@ namespace MCPForUnity.Editor.Services
             }
 
             // First, try to stop any existing server (quietly; we'll only warn if the port remains occupied).
-            StopLocalHttpServerInternal(quiet: true);
+            if (restartExisting) StopLocalHttpServerInternal(quiet: true);
 
             // If the port is still occupied, don't start and explain why (avoid confusing "refusing to stop" warnings).
             try

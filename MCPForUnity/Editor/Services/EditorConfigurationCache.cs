@@ -245,6 +245,7 @@ namespace MCPForUnity.Editor.Services
         /// </summary>
         public void SetHttpBaseUrl(string value)
         {
+            SessionState.EraseString(Helpers.HttpEndpointUtility.SessionLocalUrlKey);
             value = value ?? string.Empty;
             if (_httpBaseUrl != value)
             {

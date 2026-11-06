@@ -124,7 +124,7 @@ namespace MCPForUnity.Editor.Services.Transport.Transports
             }
 
             // State is connected but session ID might be pending until 'registered' message
-            _state = TransportState.Connected(TransportDisplayName, sessionId: "pending", details: _endpointUri.ToString());
+            _state = TransportState.Connected(TransportDisplayName, sessionId: _sessionId ?? "pending", details: _endpointUri.ToString());
             _isConnected = true;
             return true;
         }

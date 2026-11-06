@@ -1,6 +1,6 @@
 ---
 name: unity-mcp-light
-description: Orchestrate Unity Editor via MCP (Model Context Protocol) tools and resources. Use when working with Unity projects through Unity MCP Light - creating/modifying GameObjects, editing scripts, managing scenes, running tests, or any Unity Editor automation. Provides best practices, tool schemas, and workflow patterns for effective Unity-MCP integration.
+description: Control Unity Editor through Unity MCP Light, including local server startup and connection recovery without user clicks. Use for Unity scene, object, asset, script, and test operations, or when the Light server is stopped or disconnected.
 ---
 
 # Unity-MCP Operator Guide
@@ -15,6 +15,24 @@ Core coordination instructions arrive automatically when MCP connects, including
 through the Claude Desktop HTTP bridge. Do not ask the user to paste agent instructions
 or install this skill before ordinary shared-editor work. This skill adds examples;
 the live MCP schema determines which tools/actions are actually available.
+
+## Start or recover HTTP Local without user clicks
+
+If the MCP server is unavailable and terminal access is allowed, run
+`unity-mcp connection ensure --project "<Unity project root>"` using the matching
+installed Light server, or `uv run --directory "<checkout>/Server" unity-mcp connection
+ensure --project "<Unity project root>"` from source. Unity must already be open with
+the updated package and HTTP Local selected. Use the returned JSON `mcp_url` and
+`instance`; do not guess a port. Default `--server-port 0` selects a free port or
+reuses a healthy connection. Multiple agents should share that editor's server.
+Use `--wait-seconds 300` when first-run dependency installation takes longer.
+Rerun this command to recover a failed server. A client configured with
+`mcp-for-unity-proxy --project "<Unity project root>"` requests startup when it
+connects; reconnect the client after backend recovery. This does not launch Unity,
+rewrite client registrations, or switch an existing stdio/remote transport.
+For a local-package checkout, find its path in the project's `Packages/manifest.json`:
+the `Server` directory is beside `MCPForUnity`. Use that matching source if a global
+`unity-mcp` command is missing or older; do not substitute upstream's PyPI server.
 
 ## Template Notice
 
